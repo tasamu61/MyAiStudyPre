@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>式をあてはめる — 意味のある係数、意味のない係数</title>
+<style>
+  :root{
+    --paper:#FBF9F5;
+    --ink:#2B2B2E;
+    --ink-soft:#5b5b5f;
+    --data:#4A6D7C;
+    --line:#C1502E;
+    --c3:#8A7A3F;
+    --c4:#6B4E8E;
+    --rule:#D8D3C7;
+    --panel:#F2EEE4;
+    --warn:#9C3B2E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    line-height:1.6;
+  }
+  .wrap{
+    max-width:1040px;
+    margin:0 auto;
+    padding:48px 24px 80px;
+  }
+  header{margin-bottom:36px;}
+  .kicker{
+    font-family:Georgia,"Times New Roman",serif;
+    font-style:italic;
+    color:var(--ink-soft);
+    font-size:15px;
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:34px;
+    font-weight:400;
+    margin:0 0 12px;
+  }
+  .lede{
+    max-width:64ch;
+    color:var(--ink-soft);
+    font-size:15.5px;
+    margin:0;
+  }
+  .board{
+    display:grid;
+    grid-template-columns:300px 1fr;
+    gap:28px;
+    margin-top:40px;
+    align-items:start;
+  }
+  @media (max-width:820px){
+    .board{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--rule);
+    padding:22px;
+  }
+  .panel h2{
+    font-family:Georgia,serif;
+    font-weight:400;
+    font-size:16px;
+    margin:0 0 14px;
+  }
+  .group{margin-bottom:22px;}
+  .group:last-child{margin-bottom:0;}
+  .choice-row{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .choice{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    font-size:13.5px;
+    cursor:pointer;
+    padding:6px 8px;
+    border:1px solid transparent;
+  }
+  .choice.active{
+    background:#fff;
+    border-color:var(--rule);
+  }
+  .choice input{margin-top:3px;}
+  .choice .eqtxt{
+    font-family:Georgia,serif;
+    font-style:italic;
+  }
+  .preset-btns{
+    display:flex;
+    gap:6px;
+    margin-bottom:12px;
+  }
+  .preset-btns button{
+    flex:1;
+    font-size:12px;
+    padding:7px 4px;
+  }
+  .paramgrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .paramfield label{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:3px;
+    font-family:Georgia,serif;
+    font-style:italic;
+  }
+  .paramfield input{
+    width:100%;
+    font-family:inherit;
+    font-size:13px;
+    padding:5px 6px;
+    border:1px solid var(--rule);
+    background:#fff;
+  }
+  .hint{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:flex;
+    justify-content:space-between;
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  input[type="range"]{width:100%;accent-color:var(--line);}
+  .btnrow{display:flex;gap:8px;margin-top:8px;}
+  button{
+    font-family:inherit;
+    font-size:14px;
+    padding:9px 14px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    cursor:pointer;
+    flex:1;
+  }
+  button.secondary{background:transparent;color:var(--ink);}
+  button.tertiary{
+    background:transparent;
+    color:var(--ink-soft);
+    border-color:var(--rule);
+    font-size:12px;
+    padding:6px 10px;
+  }
+  .stats{
+    margin-top:20px;
+    border-top:1px solid var(--rule);
+    padding-top:16px;
+  }
+  .stat-row{
+    display:flex;
+    justify-content:space-between;
+    font-family:Georgia,serif;
+    font-size:14.5px;
+    margin-bottom:6px;
+  }
+  .stat-row .label{font-style:italic;color:var(--ink-soft);}
+  .stat-row .num{font-variant-numeric:tabular-nums;}
+  .warning{
+    margin-top:14px;
+    padding:10px 12px;
+    background:#F6E9E6;
+    border:1px solid var(--warn);
+    color:var(--warn);
+    font-size:12.5px;
+    display:none;
+  }
+  .canvases{display:flex;flex-direction:column;gap:20px;}
+  .canvas-box{
+    background:#fff;
+    border:1px solid var(--rule);
+    padding:16px;
+  }
+  .canvas-box h3{
+    font-family:Georgia,serif;
+    font-weight:400;
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:0 0 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+  }
+  .legend{
+    display:flex;
+    gap:14px;
+    font-size:12.5px;
+    font-variant-numeric:tabular-nums;
+  }
+  .legend span.dot{
+    display:inline-block;
+    width:9px;height:9px;
+    border-radius:50%;
+    margin-right:4px;
+  }
+  canvas{width:100%;display:block;}
+  .note{
+    margin-top:40px;
+    padding-top:22px;
+    border-top:1px solid var(--rule);
+    font-size:14px;
+    color:var(--ink-soft);
+    max-width:74ch;
+  }
+  .note code{background:var(--panel);padding:1px 5px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">AI基礎学習 — No.1 / No.2 発展</p>
+    <h1>式をあてはめる — 意味のある係数、意味のない係数</h1>
+    <p class="lede">
+      データの性質と、あてはめる式の次数を独立に選べる。式がデータに対して余分な次数を持っていると、
+      その係数はどう動くのか。学習を進めながら、各係数の値の変化を追ってみる。
+    </p>
+  </header>
+
+  <div class="board">
+    <div class="panel">
+      <div class="group">
+        <h2>データ</h2>
+        <div class="choice-row" id="dataChoices">
+          <label class="choice" data-value="four_exact">
+            <input type="radio" name="dataType" value="four_exact">
+            <span>4点・誤差のない完全な一次<br><span class="eqtxt">y = 1.6x − 0.5</span></span>
+          </label>
+          <label class="choice" data-value="linear_noisy">
+            <input type="radio" name="dataType" value="linear_noisy" checked>
+            <span>数十点・ばらつきのある一次<br><span class="eqtxt">y ≈ 1.6x − 0.5 + ノイズ</span></span>
+          </label>
+          <label class="choice" data-value="quad_noisy">
+            <input type="radio" name="dataType" value="quad_noisy">
+            <span>数十点・ばらつきのある二次<br><span class="eqtxt">y ≈ 0.55x² − 0.3x − 0.9 + ノイズ</span></span>
+          </label>
+        </div>
+
+        <div class="field" style="margin-top:16px;">
+          <label>ばらつきの大きさ（ノイズ） <span id="noiseVal">0.35</span></label>
+          <input type="range" id="noiseAmp" min="0" max="1.2" step="0.05" value="0.35">
+        </div>
+
+        <label class="choice" id="outlierChoice" style="margin-bottom:0;">
+          <input type="checkbox" id="outlierCheck">
+          <span>外れ値を1点混ぜる<br><span class="eqtxt">ランダムな1点だけ、大きく本来の値からズラす</span></span>
+        </label>
+
+        <button class="tertiary" id="reshuffleBtn" style="margin-top:10px;width:100%;">この条件で点を引き直す</button>
+      </div>
+
+      <div class="group">
+        <h2>あてはめる式（次数）</h2>
+        <div class="choice-row" id="degreeChoices">
+          <label class="choice" data-value="1">
+            <input type="radio" name="degree" value="1" checked>
+            <span class="eqtxt">y = ax + b</span>
+          </label>
+          <label class="choice" data-value="2">
+            <input type="radio" name="degree" value="2">
+            <span class="eqtxt">y = ax² + bx + c</span>
+          </label>
+          <label class="choice" data-value="3">
+            <input type="radio" name="degree" value="3">
+            <span class="eqtxt">y = ax³ + bx² + cx + d</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>誤差の測り方（Loss）</h2>
+        <div class="choice-row" id="lossChoices">
+          <label class="choice" data-value="mse">
+            <input type="radio" name="lossType" value="mse" checked>
+            <span>MSE（二乗誤差）<br><span class="eqtxt">(予測 − 正解)²</span></span>
+          </label>
+          <label class="choice" data-value="mae">
+            <input type="radio" name="lossType" value="mae">
+            <span>MAE（絶対誤差）<br><span class="eqtxt">|予測 − 正解|</span></span>
+          </label>
+          <label class="choice" data-value="huber">
+            <input type="radio" name="lossType" value="huber">
+            <span>Huber<br><span class="eqtxt">誤差が小さい間は二乗、大きいと絶対値</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>初期値</h2>
+        <div class="preset-btns">
+          <button class="secondary" id="presetZero">すべて0</button>
+          <button class="secondary" id="presetSmall">小さいランダム</button>
+          <button class="secondary" id="presetLarge">大きめランダム</button>
+        </div>
+        <div class="paramgrid" id="paramInputs"></div>
+        <p class="hint">値を編集したら「やり直す」を押すと反映されます。</p>
+      </div>
+
+      <div class="group">
+        <h2>学習の設定</h2>
+        <div class="field">
+          <label>学習率 <span id="lrVal">0.020</span></label>
+          <input type="range" id="lr" min="0.001" max="0.08" step="0.001" value="0.02">
+        </div>
+        <div class="field">
+          <label>1クリックあたりの更新回数 <span id="stepsVal">5</span></label>
+          <input type="range" id="steps" min="1" max="50" step="1" value="5">
+        </div>
+        <div class="btnrow">
+          <button id="stepBtn">1手進める</button>
+          <button id="runBtn" class="secondary">自動で回す</button>
+        </div>
+        <div class="btnrow">
+          <button id="resetBtn" class="secondary">やり直す</button>
+        </div>
+      </div>
+
+      <div class="stats" id="statsBox"></div>
+      <p class="warning" id="warningBox">発散しました。学習率を下げるか、やり直してください。</p>
+    </div>
+
+    <div class="canvases">
+      <div class="canvas-box">
+        <h3>データ点と、現在の予測曲線</h3>
+        <canvas id="scatterCanvas" width="700" height="340"></canvas>
+      </div>
+      <div class="canvas-box">
+        <h3 id="lossChartTitle">Lossの推移（MSE）</h3>
+        <canvas id="lossCanvas" width="700" height="140"></canvas>
+      </div>
+      <div class="canvas-box">
+        <h3 id="paramChartTitle">各係数の変化<span class="legend" id="paramLegend"></span></h3>
+        <canvas id="paramCanvas" width="700" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">
+    見かた: データが一次式から作られているのに、3次式をあてはめると、
+    x³ の係数 a や x² の係数 b はデータに合わせる根拠がないため、学習が進んでも0付近から動かない、
+    あるいは0に向かって縮んでいく。逆に、データが二次式から作られているのに1次式しか使えないと、
+    どう頑張ってもLossは下がりきらない。「式の形そのものが正しいかどうか」が、
+    係数の学習だけでは埋められない部分だと分かる。<br><br>
+    誤差の測り方（Loss）を変えると、外れ値への反応が変わる。
+    「外れ値を1点混ぜる」を有効にしてMSEを使うと、1点の大きな誤差が2乗されて強く効くため、
+    直線がその外れ値に引っ張られる。MAEやHuberに切り替えると、外れ値の影響が抑えられ、
+    残り大多数の点に沿った直線に近づく。ノイズの大きさを0に近づけると、データがほぼ完全な式に近づき、
+    逆に大きくすると、どんな式でもぴったりは合わなくなっていく様子も比べられる。
+  </p>
+</div>
+
+<script>
+(function(){
+  const LETTERS = ['a','b','c','d'];
+  const COLORS  = ['#C1502E','#4A6D7C','#8A7A3F','#6B4E8E'];
+
+  const trueA = 1.6, trueB = -0.5;
+  const trueA2 = 0.55, trueB2 = -0.3, trueC2 = -0.9;
+
+  let state = {
+    dataType: 'linear_noisy',
+    degree: 1,
+    lossType: 'mse',
+    noiseAmp: 0.35,
+    includeOutlier: false,
+    points: [],
+    weights: [],
+    epoch: 0,
+    lossHistory: [],
+    paramHistory: [],
+    running: false,
+    diverged: false,
+    presetType: 'zero'
+  };
+
+  // ---------- データ生成 ----------
+  function genPoints(dataType, noiseAmp, includeOutlier){
+    const pts = [];
+    if(dataType === 'four_exact'){
+      [-1.5,-0.5,0.5,1.5].forEach(x=>{
+        pts.push({x, y: trueA*x + trueB});
+      });
+      return pts; // 完全な一次はノイズ・外れ値の対象外
+    } else if(dataType === 'linear_noisy'){
+      for(let i=0;i<40;i++){
+        const x = (Math.random()*2-1)*1.6;
+        const noise = (Math.random()*2-1)*noiseAmp;
+        pts.push({x, y: trueA*x + trueB + noise});
+      }
+    } else { // quad_noisy
+      for(let i=0;i<40;i++){
+        const x = (Math.random()*2-1)*1.6;
+        const noise = (Math.random()*2-1)*noiseAmp;
+        pts.push({x, y: trueA2*x*x + trueB2*x + trueC2 + noise});
+      }
+    }
+    if(includeOutlier && pts.length){
+      const oi = Math.floor(Math.random()*pts.length);
+      const sign = Math.random()<0.5 ? 1 : -1;
+      const baseY = dataType==='quad_noisy'
+        ? trueA2*pts[oi].x*pts[oi].x + trueB2*pts[oi].x + trueC2
+        : trueA*pts[oi].x + trueB;
+      pts[oi].y = baseY + sign*6.0;
+    }
+    return pts;
+  }
+
+  // ---------- モデル ----------
+  function predict(x, weights, degree){
+    let y = 0;
+    for(let i=0;i<=degree;i++){
+      y += weights[i]*Math.pow(x, degree-i);
+    }
+    return y;
+  }
+
+  const HUBER_DELTA = 1.0;
+
+  function computeLossAndGrad(weights, degree, points, lossType){
+    let loss=0;
+    const grad = new Array(degree+1).fill(0);
+    for(const p of points){
+      const pred = predict(p.x, weights, degree);
+      const err = pred - p.y;
+      let pointLoss, dLoss_dErr;
+
+      if(lossType === 'mae'){
+        pointLoss = Math.abs(err);
+        dLoss_dErr = err > 0 ? 1 : (err < 0 ? -1 : 0);
+      } else if(lossType === 'huber'){
+        if(Math.abs(err) <= HUBER_DELTA){
+          pointLoss = 0.5*err*err;
+          dLoss_dErr = err;
+        } else {
+          pointLoss = HUBER_DELTA*(Math.abs(err) - 0.5*HUBER_DELTA);
+          dLoss_dErr = HUBER_DELTA * (err>0?1:-1);
+        }
+      } else { // mse
+        pointLoss = err*err;
+        dLoss_dErr = 2*err;
+      }
+
+      loss += pointLoss;
+      for(let i=0;i<=degree;i++){
+        grad[i] += dLoss_dErr*Math.pow(p.x, degree-i);
+      }
+    }
+    const n = points.length;
+    loss /= n;
+    for(let i=0;i<grad.length;i++) grad[i] /= n;
+    return {loss, grad};
+  }
+
+  function makeWeights(degree, presetType){
+    const w = new Array(degree+1).fill(0);
+    for(let i=0;i<w.length;i++){
+      if(presetType==='zero') w[i]=0;
+      else if(presetType==='small') w[i]=(Math.random()*2-1)*0.3;
+      else w[i]=(Math.random()*2-1)*2.0;
+    }
+    return w;
+  }
+
+  // ---------- DOM refs ----------
+  const paramInputsEl = document.getElementById('paramInputs');
+  const statsBox = document.getElementById('statsBox');
+  const warningBox = document.getElementById('warningBox');
+  const lrInput = document.getElementById('lr');
+  const stepsInput = document.getElementById('steps');
+  const lrVal = document.getElementById('lrVal');
+  const stepsVal = document.getElementById('stepsVal');
+  const stepBtn = document.getElementById('stepBtn');
+  const runBtn = document.getElementById('runBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const reshuffleBtn = document.getElementById('reshuffleBtn');
+  const paramLegend = document.getElementById('paramLegend');
+
+  lrInput.addEventListener('input', ()=>{ lrVal.textContent = Number(lrInput.value).toFixed(3); });
+  stepsInput.addEventListener('input', ()=>{ stepsVal.textContent = stepsInput.value; });
+
+  function renderParamInputs(){
+    paramInputsEl.innerHTML = '';
+    for(let i=0;i<=state.degree;i++){
+      const wrap = document.createElement('div');
+      wrap.className = 'paramfield';
+      const label = document.createElement('label');
+      label.textContent = LETTERS[i] + ' の初期値';
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.1';
+      input.id = 'param-input-'+i;
+      input.value = state.weights[i].toFixed(3);
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      paramInputsEl.appendChild(wrap);
+    }
+  }
+
+  function readParamInputs(){
+    const vals = [];
+    for(let i=0;i<=state.degree;i++){
+      const el = document.getElementById('param-input-'+i);
+      const v = parseFloat(el.value);
+      vals.push(isNaN(v)?0:v);
+    }
+    return vals;
+  }
+
+  function renderLegend(){
+    let html = '';
+    for(let i=0;i<=state.degree;i++){
+      html += `<span><span class="dot" style="background:${COLORS[i]}"></span>${LETTERS[i]}</span>`;
+    }
+    paramLegend.innerHTML = html;
+  }
+
+  const lossChartTitleEl = document.getElementById('lossChartTitle');
+  const LOSS_LABELS = {mse:'MSE', mae:'MAE', huber:'Huber'};
+
+  function renderStats(){
+    lossChartTitleEl.textContent = 'Lossの推移（' + LOSS_LABELS[state.lossType] + '）';
+    let html = '';
+    for(let i=0;i<=state.degree;i++){
+      html += `<div class="stat-row"><span class="label">${LETTERS[i]}</span><span class="num">${state.weights[i].toFixed(4)}</span></div>`;
+    }
+    const lastLoss = state.lossHistory.length ? state.lossHistory[state.lossHistory.length-1] : null;
+    html += `<div class="stat-row"><span class="label">Loss</span><span class="num">${lastLoss===null?'-':lastLoss.toFixed(4)}</span></div>`;
+    html += `<div class="stat-row"><span class="label">更新回数</span><span class="num">${state.epoch}</span></div>`;
+    statsBox.innerHTML = html;
+  }
+
+  // ---------- 学習制御 ----------
+  function resetTraining(newWeights){
+    state.weights = newWeights.slice();
+    state.epoch = 0;
+    state.lossHistory = [];
+    state.paramHistory = state.weights.map(w=>[w]);
+    state.diverged = false;
+    warningBox.style.display = 'none';
+    renderParamInputs();
+    renderLegend();
+    render();
+  }
+
+  function fullRegenerate(){
+    state.points = genPoints(state.dataType, state.noiseAmp, state.includeOutlier);
+    const w = makeWeights(state.degree, state.presetType);
+    resetTraining(w);
+  }
+
+  function trainOneStep(){
+    if(state.diverged) return;
+    const lr = Number(lrInput.value);
+    const {loss, grad} = computeLossAndGrad(state.weights, state.degree, state.points, state.lossType);
+    for(let i=0;i<state.weights.length;i++){
+      state.weights[i] = state.weights[i] - lr*grad[i];
+    }
+    state.epoch++;
+    state.lossHistory.push(loss);
+    if(state.lossHistory.length>500) state.lossHistory.shift();
+    state.weights.forEach((w,i)=>{
+      state.paramHistory[i].push(w);
+      if(state.paramHistory[i].length>500) state.paramHistory[i].shift();
+    });
+    if(!isFinite(loss) || loss>1e7){
+      state.diverged = true;
+      state.running = false;
+      runBtn.textContent = '自動で回す';
+      warningBox.style.display = 'block';
+    }
+  }
+
+  // ---------- 描画: 散布図 + 曲線 ----------
+  const scatterCanvas = document.getElementById('scatterCanvas');
+  const sctx = scatterCanvas.getContext('2d');
+
+  function drawScatter(){
+    const W = scatterCanvas.width, H = scatterCanvas.height;
+    sctx.clearRect(0,0,W,H);
+    if(state.points.length===0) return;
+
+    const xs = state.points.map(p=>p.x), ys = state.points.map(p=>p.y);
+    const xMin = Math.min(...xs)-0.4, xMax = Math.max(...xs)+0.4;
+    let yMin = Math.min(...ys)-0.6, yMax = Math.max(...ys)+0.6;
+
+    const pad = 30;
+    function toPx(x,y){
+      const px = pad + (x-xMin)/(xMax-xMin) * (W-2*pad);
+      const py = H-pad - (y-yMin)/(yMax-yMin) * (H-2*pad);
+      return [px,py];
+    }
+
+    sctx.strokeStyle = '#D8D3C7';
+    sctx.lineWidth = 1;
+    sctx.beginPath();
+    sctx.moveTo(pad, H-pad); sctx.lineTo(W-pad, H-pad);
+    sctx.moveTo(pad, pad); sctx.lineTo(pad, H-pad);
+    sctx.stroke();
+
+    sctx.fillStyle = '#4A6D7C';
+    for(const p of state.points){
+      const [px,py] = toPx(p.x,p.y);
+      sctx.beginPath();
+      sctx.arc(px,py,3.5,0,Math.PI*2);
+      sctx.fill();
+    }
+
+    if(!state.diverged){
+      const steps = 80;
+      sctx.strokeStyle = '#C1502E';
+      sctx.lineWidth = 2.5;
+      sctx.beginPath();
+      for(let i=0;i<=steps;i++){
+        const x = xMin + (xMax-xMin)*i/steps;
+        const y = predict(x, state.weights, state.degree);
+        const [px,py] = toPx(x,y);
+        if(i===0) sctx.moveTo(px,py); else sctx.lineTo(px,py);
+      }
+      sctx.stroke();
+    }
+  }
+
+  // ---------- 描画: Loss推移 ----------
+  const lossCanvas = document.getElementById('lossCanvas');
+  const lctx = lossCanvas.getContext('2d');
+
+  function drawLoss(){
+    const W = lossCanvas.width, H = lossCanvas.height;
+    lctx.clearRect(0,0,W,H);
+    const pad = 22;
+    lctx.strokeStyle = '#D8D3C7';
+    lctx.beginPath();
+    lctx.moveTo(pad,H-pad); lctx.lineTo(W-pad,H-pad);
+    lctx.moveTo(pad,pad); lctx.lineTo(pad,H-pad);
+    lctx.stroke();
+
+    const hist = state.lossHistory;
+    if(hist.length<2) return;
+    const maxLoss = Math.max(...hist.filter(v=>isFinite(v)));
+    lctx.strokeStyle = '#2B2B2E';
+    lctx.lineWidth = 2;
+    lctx.beginPath();
+    hist.forEach((l,i)=>{
+      if(!isFinite(l)) return;
+      const px = pad + (i/(hist.length-1)) * (W-2*pad);
+      const py = H-pad - (l/(maxLoss+1e-9)) * (H-2*pad);
+      if(i===0) lctx.moveTo(px,py); else lctx.lineTo(px,py);
+    });
+    lctx.stroke();
+  }
+
+  // ---------- 描画: 係数の推移 ----------
+  const paramCanvas = document.getElementById('paramCanvas');
+  const pctx = paramCanvas.getContext('2d');
+
+  function drawParams(){
+    const W = paramCanvas.width, H = paramCanvas.height;
+    pctx.clearRect(0,0,W,H);
+    const pad = 22;
+
+    const allVals = state.paramHistory.flat().filter(v=>isFinite(v));
+    let maxAbs = 0.5;
+    if(allVals.length) maxAbs = Math.max(0.5, ...allVals.map(v=>Math.abs(v)));
+
+    function toPy(v){
+      return H/2 - (v/maxAbs) * (H/2-pad);
+    }
+
+    // ゼロライン
+    pctx.strokeStyle = '#D8D3C7';
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.moveTo(pad, toPy(0)); pctx.lineTo(W-pad, toPy(0));
+    pctx.stroke();
+    pctx.strokeStyle = '#EDE8DA';
+    pctx.beginPath();
+    pctx.moveTo(pad, pad); pctx.lineTo(pad, H-pad);
+    pctx.stroke();
+
+    const maxLen = Math.max(...state.paramHistory.map(h=>h.length), 1);
+    if(maxLen<2) return;
+
+    state.paramHistory.forEach((hist,i)=>{
+      pctx.strokeStyle = COLORS[i];
+      pctx.lineWidth = 2;
+      pctx.beginPath();
+      hist.forEach((v,idx)=>{
+        const px = pad + (idx/(maxLen-1)) * (W-2*pad);
+        const py = toPy(v);
+        if(idx===0) pctx.moveTo(px,py); else pctx.lineTo(px,py);
+      });
+      pctx.stroke();
+    });
+  }
+
+  function render(){
+    drawScatter();
+    drawLoss();
+    drawParams();
+    renderStats();
+  }
+
+  // ---------- イベント ----------
+  document.querySelectorAll('#dataChoices .choice').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const val = el.getAttribute('data-value');
+      state.dataType = val;
+      document.querySelectorAll('#dataChoices .choice').forEach(c=>c.classList.remove('active'));
+      el.classList.add('active');
+      el.querySelector('input').checked = true;
+      syncOutlierAvailability();
+      fullRegenerate();
+    });
+  });
+  document.querySelector('#dataChoices .choice[data-value="linear_noisy"]').classList.add('active');
+
+  const noiseAmpInput = document.getElementById('noiseAmp');
+  const noiseValEl = document.getElementById('noiseVal');
+  const outlierCheck = document.getElementById('outlierCheck');
+
+  function syncOutlierAvailability(){
+    const disabled = state.dataType === 'four_exact';
+    noiseAmpInput.disabled = disabled;
+    outlierCheck.disabled = disabled;
+    document.getElementById('outlierChoice').style.opacity = disabled ? 0.45 : 1;
+  }
+
+  noiseAmpInput.addEventListener('input', ()=>{
+    state.noiseAmp = Number(noiseAmpInput.value);
+    noiseValEl.textContent = state.noiseAmp.toFixed(2);
+  });
+  noiseAmpInput.addEventListener('change', ()=>{
+    fullRegenerate();
+  });
+
+  outlierCheck.addEventListener('change', ()=>{
+    state.includeOutlier = outlierCheck.checked;
+    fullRegenerate();
+  });
+
+  document.querySelectorAll('#degreeChoices .choice').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const val = parseInt(el.getAttribute('data-value'),10);
+      state.degree = val;
+      document.querySelectorAll('#degreeChoices .choice').forEach(c=>c.classList.remove('active'));
+      el.classList.add('active');
+      el.querySelector('input').checked = true;
+      const w = makeWeights(state.degree, state.presetType);
+      state.points = state.points.length ? state.points : genPoints(state.dataType, state.noiseAmp, state.includeOutlier);
+      resetTraining(w);
+    });
+  });
+  document.querySelector('#degreeChoices .choice[data-value="1"]').classList.add('active');
+
+  document.querySelectorAll('#lossChoices .choice').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const val = el.getAttribute('data-value');
+      state.lossType = val;
+      document.querySelectorAll('#lossChoices .choice').forEach(c=>c.classList.remove('active'));
+      el.classList.add('active');
+      el.querySelector('input').checked = true;
+      // 同じ重みのまま、Lossの見え方だけ変える（学習し直す）
+      resetTraining(state.weights);
+    });
+  });
+  document.querySelector('#lossChoices .choice[data-value="mse"]').classList.add('active');
+
+  document.getElementById('presetZero').addEventListener('click', ()=>{
+    state.presetType = 'zero';
+    resetTraining(makeWeights(state.degree,'zero'));
+  });
+  document.getElementById('presetSmall').addEventListener('click', ()=>{
+    state.presetType = 'small';
+    resetTraining(makeWeights(state.degree,'small'));
+  });
+  document.getElementById('presetLarge').addEventListener('click', ()=>{
+    state.presetType = 'large';
+    resetTraining(makeWeights(state.degree,'large'));
+  });
+
+  reshuffleBtn.addEventListener('click', ()=>{
+    state.points = genPoints(state.dataType, state.noiseAmp, state.includeOutlier);
+    resetTraining(state.weights);
+  });
+
+  stepBtn.addEventListener('click', ()=>{
+    const n = Number(stepsInput.value);
+    for(let i=0;i<n && !state.diverged;i++) trainOneStep();
+    render();
+  });
+
+  let rafTimer = null;
+  runBtn.addEventListener('click', ()=>{
+    if(state.diverged) return;
+    state.running = !state.running;
+    runBtn.textContent = state.running ? '停止する' : '自動で回す';
+    if(state.running) loop();
+  });
+
+  function loop(){
+    if(!state.running) return;
+    const n = Number(stepsInput.value);
+    for(let i=0;i<n && !state.diverged;i++) trainOneStep();
+    render();
+    if(state.diverged){ state.running=false; runBtn.textContent='自動で回す'; return; }
+    rafTimer = setTimeout(()=>requestAnimationFrame(loop), 40);
+  }
+
+  resetBtn.addEventListener('click', ()=>{
+    state.running = false;
+    runBtn.textContent = '自動で回す';
+    if(rafTimer) clearTimeout(rafTimer);
+    const w = readParamInputs();
+    resetTraining(w);
+  });
+
+  // ---------- 初期化 ----------
+  syncOutlierAvailability();
+  fullRegenerate();
+})();
+</script>
+</body>
+</html>
