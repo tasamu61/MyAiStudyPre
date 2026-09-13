@@ -94,5 +94,5 @@ function train(count) {
     draw();
 }
 ```
-[1次元学習デモ](01-1OneDimension.html)
+[1次元学習デモ](https://github.com/tasamu61/MyAiStudyPre/blob/main/1.MachineLearningBasic/01-1OneDimension.html)
 で、任意の回数を累積実行してみて機械学習の進捗を実感してみて
