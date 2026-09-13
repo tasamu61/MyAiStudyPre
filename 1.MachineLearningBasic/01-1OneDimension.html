@@ -24,27 +24,29 @@
 
 <script>
 
+const canvas = document.getElementById("graph");
+const ctx = canvas.getContext("2d");
+
+let epoch = 0;
+let Tloss = 0;
+
+// 学習データ
 const data = [
     [1, 3],
     [2, 5],
     [4, 9],
     [5, 11]
 ];
-let epoch = 0;
-let Tloss = 0;
 
-// 初期値
+// ②③初期値
 let a = 0;
 let b = 0;
 
-// 学習率
+// ⓺学習率
 const learningRate = 0.01;
 
-const canvas = document.getElementById("graph");
-const ctx = canvas.getContext("2d");
-
 // 機械学習を実装したロジックであり、
-// ここれは回数をcount可変としている。
+// ここれは回数を⑦count可変としている。
 function train(count) {
 
 	// 指定数、学習を繰り返す
@@ -56,30 +58,30 @@ function train(count) {
 
         // 指定数繰り返す
         for (const [x, y] of data) {
-            // モデル式で計算して
+            // ①モデル式で計算して
             const prediction = a * x + b;
-            // 誤差を求める
+            // ④誤差を求める
             const diff = prediction - y;
-            // 損失関数として二乗
+            // 損失関数として二乗し損失を求める。
             loss += diff * diff;
 
-            // a,bについて微分した値を求める。
+            // ⑤a,bについて微分した値、勾配を求める。
             gradA += 2 * diff * x;
             gradB += 2 * diff;
         }
         Tloss = loss;
-        // データ数で除算し１件あたりに
+        // データ数で割り１件あたりに
         gradA /= data.length;
         gradB /= data.length;
 
-        // 学習率を乗算し、その値で補正
+        // 学習率を×て、その値で補正
         a -= learningRate * gradA;
         b -= learningRate * gradB;
 
         epoch++;
     }
 
-    draw();
+    draw(); // 結果表示
 }
 
 
