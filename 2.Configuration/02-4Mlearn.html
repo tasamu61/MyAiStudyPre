@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>y = a*x + b から始める機械学習デモ</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; }
+  h1 { font-size: 20px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .controls > div { border: 1px solid #ccc; padding: 8px; border-radius: 4px; }
+  label { display: block; font-size: 12px; margin-bottom: 4px; }
+  input[type="number"] { width: 80px; }
+  canvas { border: 1px solid #333; }
+  .status { margin-top: 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>第1章：y = a*x + b から始める機械学習デモ</h1>
+
+<div class="controls">
+  <div>
+    <strong>データセット</strong>
+    <label><input type="radio" name="dataset" value="linear4" checked> 一次・固定直線（4点）</label>
+    <label><input type="radio" name="dataset" value="linear50"> 一次・50点ばらつきあり</label>
+    <label><input type="radio" name="dataset" value="quad50"> 二次・50点ばらつきあり</label>
+    <label><input type="radio" name="dataset" value="quad50_outliers"> 二次・50点＋大きく外れる3点</label>
+  </div>
+
+  <div>
+    <strong>モデル選択</strong>
+    <label><input type="radio" name="model" value="1" checked> 一次：y = a*x + b</label>
+    <label><input type="radio" name="model" value="2"> 二次：y = a*x² + b*x + c</label>
+    <label><input type="radio" name="model" value="3"> 三次：y = a*x³ + b*x² + c*x + d</label>
+  </div>
+
+  <div>
+    <strong>損失関数</strong>
+    <label><input type="radio" name="loss" value="mse" checked> 二乗誤差： (予測値 - 正解値)²</label>
+    <label><input type="radio" name="loss" value="mae"> 絶対誤差： |予測値 - 正解値|</label>
+  </div>
+
+  <div>
+    <strong>ハイパーパラメータ</strong>
+    <label>初期値 a: <input type="number" id="initA" value="0" step="0.1"></label>
+    <label>初期値 b: <input type="number" id="initB" value="0" step="0.1"></label>
+    <label>初期値 c: <input type="number" id="initC" value="0" step="0.1"></label>
+    <label>初期値 d: <input type="number" id="initD" value="0" step="0.1"></label>
+    <label>学習率(η): <input type="number" id="lr" value="0.001" step="0.0005"></label>
+    <button id="resetBtn">初期化</button>
+  </div>
+
+  <div>
+    <strong>学習ステップ（epoch）</strong>
+    <button data-epoch="1">+1</button>
+    <button data-epoch="5">+5</button>
+    <button data-epoch="10">+10</button>
+    <button data-epoch="100">+100</button>
+  </div>
+</div>
+
+<canvas id="chart" width="600" height="400"></canvas>
+
+<div class="status" id="status"></div>
+
+<script>
+  // -----------------------------
+  // データ生成
+  // -----------------------------
+  function generateDataset(type) {
+    const data = [];
+    if (type === "linear4") {
+      const xs = [1, 2, 3, 4];
+      xs.forEach(x => data.push({ x, y: 2 * x + 1 }));
+    } else if (type === "linear50") {
+      for (let i = 0; i < 50; i++) {
+        const x = i / 5;
+        const noise = (Math.random() - 0.5) * 2;
+        const y = 2 * x + 1 + noise;
+        data.push({ x, y });
+      }
+    } else if (type === "quad50") {
+      for (let i = 0; i < 50; i++) {
+        const x = (i - 25) / 5;
+        const noise = (Math.random() - 0.5) * 2;
+        const y = 0.5 * x * x - x + 2 + noise;
+        data.push({ x, y });
+      }
+    } else if (type === "quad50_outliers") {
+      for (let i = 0; i < 50; i++) {
+        const x = (i - 25) / 5;
+        const noise = (Math.random() - 0.5) * 2;
+        const y = 0.5 * x * x - x + 2 + noise;
+        data.push({ x, y });
+      }
+      data.push({ x: -4, y: 15 });
+      data.push({ x: 0, y: -10 });
+      data.push({ x: 4, y: 20 });
+    }
+    return data;
+  }
+
+  // -----------------------------
+  // モデルと予測
+  // -----------------------------
+  let params = { a: 0, b: 0, c: 0, d: 0 };
+
+  function predict(x, modelDegree, p) {
+    if (modelDegree === 1) return p.a * x + p.b;
+    if (modelDegree === 2) return p.a * x * x + p.b * x + p.c;
+    return p.a * x * x * x + p.b * x * x + p.c * x + p.d;
+  }
+
+  // -----------------------------
+  // 損失関数と勾配
+  // -----------------------------
+  function computeLossAndGradient(data, modelDegree, p, lossType) {
+    let loss = 0;
+    let grad = { a: 0, b: 0, c: 0, d: 0 };
+
+    data.forEach(point => {
+      const yPred = predict(point.x, modelDegree, p);
+      const err = yPred - point.y;
+
+      if (lossType === "mse") loss += err * err;
+      else loss += Math.abs(err);
+
+      const dLoss_dPred =
+        lossType === "mae"
+          ? (err > 0 ? 1 : (err < 0 ? -1 : 0))
+          : (2 * err);
+
+      if (modelDegree === 1) {
+        grad.a += dLoss_dPred * point.x;
+        grad.b += dLoss_dPred;
+      } else if (modelDegree === 2) {
+        grad.a += dLoss_dPred * point.x * point.x;
+        grad.b += dLoss_dPred * point.x;
+        grad.c += dLoss_dPred;
+      } else {
+        grad.a += dLoss_dPred * point.x * point.x * point.x;
+        grad.b += dLoss_dPred * point.x * point.x;
+        grad.c += dLoss_dPred * point.x;
+        grad.d += dLoss_dPred;
+      }
+    });
+
+    const n = data.length;
+    loss /= n;
+    grad.a /= n;
+    grad.b /= n;
+    grad.c /= n;
+    grad.d /= n;
+
+    return { loss, grad };
+  }
+
+  // -----------------------------
+  // 勾配降下法ステップ
+  // -----------------------------
+  function trainStep(data, modelDegree, p, lossType, lr, epochs) {
+    for (let i = 0; i < epochs; i++) {
+      const { grad } = computeLossAndGradient(data, modelDegree, p, lossType);
+      p.a -= lr * grad.a;
+      p.b -= lr * grad.b;
+      if (modelDegree >= 2) p.c -= lr * grad.c;
+      if (modelDegree >= 3) p.d -= lr * grad.d;
+    }
+  }
+
+  // -----------------------------
+  // グラフ描画
+  // -----------------------------
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+
+  function getBounds(data) {
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    data.forEach(p => {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    });
+    const mx = (maxX - minX) * 0.1 || 1;
+    const my = (maxY - minY) * 0.1 || 1;
+    return { minX: minX - mx, maxX: maxX + mx, minY: minY - my, maxY: maxY + my };
+  }
+
+  function toCanvasCoord(x, y, b) {
+    const cx = (x - b.minX) / (b.maxX - b.minX) * canvas.width;
+    const cy = canvas.height - (y - b.minY) / (b.maxY - b.minY) * canvas.height;
+    return { cx, cy };
+  }
+
+  function draw(data, modelDegree, p, loss, epochCount) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const b = getBounds(data);
+
+    ctx.strokeStyle = "#ccc";
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height / 2);
+    ctx.lineTo(canvas.width, canvas.height / 2);
+    ctx.moveTo(canvas.width / 2, 0);
+    ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.stroke();
+
+    ctx.fillStyle = "blue";
+    data.forEach(pt => {
+      const { cx, cy } = toCanvasCoord(pt.x, pt.y, b);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.strokeStyle = "red";
+    ctx.beginPath();
+    for (let i = 0; i <= 200; i++) {
+      const x = b.minX + (b.maxX - b.minX) * (i / 200);
+      const y = predict(x, modelDegree, p);
+      const { cx, cy } = toCanvasCoord(x, y, b);
+      if (i === 0) ctx.moveTo(cx, cy);
+      else ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+
+    document.getElementById("status").innerHTML =
+      `モデル次数: ${modelDegree} 次<br>` +
+      `a = ${p.a.toFixed(4)}, b = ${p.b.toFixed(4)}, c = ${p.c.toFixed(4)}, d = ${p.d.toFixed(4)}<br>` +
+      `Loss = ${loss.toFixed(6)}<br>` +
+      `総epoch数: ${epochCount}`;
+  }
+
+  // -----------------------------
+  // UI制御
+  // -----------------------------
+  let currentData = generateDataset("linear4");
+  let currentModelDegree = 1;
+  let currentLossType = "mse";
+  let lr = parseFloat(document.getElementById("lr").value);
+  let epochTotal = 0;
+
+  function readParamsFromUI() {
+    params.a = parseFloat(document.getElementById("initA").value);
+    params.b = parseFloat(document.getElementById("initB").value);
+    params.c = parseFloat(document.getElementById("initC").value);
+    params.d = parseFloat(document.getElementById("initD").value);
+    lr = parseFloat(document.getElementById("lr").value);
+  }
+
+  function updateAll() {
+    const { loss } = computeLossAndGradient(currentData, currentModelDegree, params, currentLossType);
+    draw(currentData, currentModelDegree, params, loss, epochTotal);
+  }
+
+  document.querySelectorAll('input[name="dataset"]').forEach(r => {
+    r.addEventListener("change", () => {
+      currentData = generateDataset(r.value);
+      epochTotal = 0;
+      updateAll();
+    });
+  });
+
+  document.querySelectorAll('input[name="model"]').forEach(r => {
+    r.addEventListener("change", () => {
+      currentModelDegree = parseInt(r.value, 10);
+      epochTotal = 0;
+      updateAll();
+    });
+  });
+
+  document.querySelectorAll('input[name="loss"]').forEach(r => {
+    r.addEventListener("change", () => {
+      currentLossType = r.value;
+      updateAll();
+    });
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    readParamsFromUI();
+    epochTotal = 0;
+    updateAll();
+  });
+
+  // ★ 修正ポイント：epoch ボタンでは readParamsFromUI() を呼ばない
+  document.querySelectorAll('button[data-epoch]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      const epochs = parseInt(btn.getAttribute("data-epoch"), 10);
+      trainStep(currentData, currentModelDegree, params, currentLossType, lr, epochs);
+      epochTotal += epochs;
+      updateAll();
+    });
+  });
+
+  readParamsFromUI();
+  updateAll();
+</script>
+</body>
+</html>

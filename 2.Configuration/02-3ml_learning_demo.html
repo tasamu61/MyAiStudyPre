@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>機械学習の基本デモ</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f6f6f6;margin:0;color:#222}
+.wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+.grid{display:grid;grid-template-columns:330px 1fr;gap:16px}
+.panel{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px}
+label{display:block;margin-top:12px;font-size:14px}
+select,input,button{font:inherit}
+select,input{width:100%;box-sizing:border-box;padding:8px;margin-top:4px}
+.params{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+button{padding:8px 12px;cursor:pointer}
+pre{background:#fafafa;border:1px solid #e5e5e5;padding:10px;border-radius:8px}
+canvas{width:100%;height:auto;border:1px solid #ddd;background:#fff}
+.note{font-size:13px;color:#666;line-height:1.6}
+table{border-collapse:collapse;width:100%;font-size:12px;margin-top:12px}
+th,td{border:1px solid #ddd;padding:4px 6px;text-align:right}
+th:first-child,td:first-child{text-align:center}
+.data-box{max-height:230px;overflow:auto}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>機械学習の基本デモ</h1>
+<p>モデル、損失関数、初期値、学習率を変えて、学習で線・曲線がどう変わるか確認します。</p>
+
+<div class="grid">
+<div class="panel">
+
+<label>学習データ
+<select id="dataType">
+<option value="exact4">完全な直線（4点）</option>
+<option value="linear" selected>直線に近いデータ（50点）</option>
+<option value="outliers">直線に近いデータ＋例外値3点（53点）</option>
+<option value="quadratic">二次曲線に近いデータ（50点）</option>
+</select>
+</label>
+
+<label>モデル
+<select id="modelType">
+<option value="linear">一次式 y=a*x+b</option>
+<option value="quadratic">二次式 y=a*x²+b*x+c</option>
+<option value="cubic">三次式 y=a*x³+b*x²+c*x+d</option>
+</select>
+</label>
+
+<label>損失関数
+<select id="lossType">
+<option value="mse">MSE</option>
+<option value="mae">MAE</option>
+</select>
+</label>
+
+<p id="formula"><code>y=a*x+b</code></p>
+
+<label>初期値</label>
+<div class="params">
+<label id="rowA">a<input id="initA" type="number" step="0.1" value="0"></label>
+<label id="rowB">b<input id="initB" type="number" step="0.1" value="0"></label>
+<label id="rowC">c<input id="initC" type="number" step="0.1" value="0"></label>
+<label id="rowD">d<input id="initD" type="number" step="0.1" value="0"></label>
+</div>
+
+<label>学習率
+<input id="lr" type="number" step="0.001" value="0.01">
+</label>
+
+<div class="buttons">
+<button id="btn1">+1 epoch</button>
+<button id="btn5">+5 epoch</button>
+<button id="btn10">+10 epoch</button>
+<button id="btn100">+100 epoch</button>
+<button id="btnReset">リセット</button>
+</div>
+
+<pre id="stats"></pre>
+<div class="note">
+「完全な直線」は第1章の4組の値です。<br>
+「例外値3点」では、50点に大きく外れた3点を追加します。MSEとMAEの違いも比較できます。<br>
+学習率を大きくしすぎると発散する場合があります。
+</div>
+</div>
+
+<div class="panel">
+<canvas id="graph" width="760" height="520"></canvas>
+<p class="note">点：学習データ　線・曲線：現在のモデル</p>
+<h3 id="dataTitle">学習データ</h3>
+<div class="data-box">
+<table>
+<thead><tr><th>No.</th><th>x</th><th>y</th></tr></thead>
+<tbody id="dataRows"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+"use strict";
+
+const el = id => document.getElementById(id);
+
+const canvas = el("graph");
+const ctx = canvas.getContext("2d");
+
+const dataTypeEl = el("dataType");
+const modelTypeEl = el("modelType");
+const lossTypeEl = el("lossType");
+const formulaEl = el("formula");
+const initAEl = el("initA");
+const initBEl = el("initB");
+const initCEl = el("initC");
+const initDEl = el("initD");
+const lrEl = el("lr");
+const statsEl = el("stats");
+const rowCEl = el("rowC");
+const rowDEl = el("rowD");
+const dataRowsEl = el("dataRows");
+const dataTitleEl = el("dataTitle");
+
+let data = [];
+let params = {};
+let epoch = 0;
+let seed = 123456789;
+
+function rand(){
+  seed = (1664525 * seed + 1013904223) >>> 0;
+  return seed / 4294967296;
+}
+
+function noise(scale){
+  return (rand() + rand() + rand() + rand() - 2) * scale;
+}
+
+function currentModel(){
+  return modelTypeEl.value;
+}
+
+function generateData(){
+  seed = 123456789;
+  data = [];
+  const type = dataTypeEl.value;
+
+  if(type === "exact4"){
+    // 第1章で使った4組。完全に y = 2*x + 1 上にある。
+    data = [
+      {x:1, y:3},
+      {x:3, y:7},
+      {x:5, y:11},
+      {x:9, y:19}
+    ];
+  }else{
+    for(let i=0; i<50; i++){
+      const x = -3 + 6 * i / 49;
+      let y;
+      if(type === "quadratic"){
+        y = 0.8 * x * x - 0.7 * x + 1.2 + noise(0.75);
+      }else{
+        y = 2 * x + 1 + noise(0.65);
+      }
+      data.push({x, y});
+    }
+
+    if(type === "outliers"){
+      // 通常のばらつきから大きく外れた例外値を3点追加。
+      data.push(
+        {x:-2.2, y:5.8},
+        {x:0.4,  y:-5.5},
+        {x:2.4,  y:11.8}
+      );
+    }
+  }
+  showData();
+}
+
+function showData(){
+  dataTitleEl.textContent = `学習データ（${data.length}件）`;
+  dataRowsEl.innerHTML = data.map((p,i) =>
+    `<tr><td>${i+1}</td><td>${p.x.toFixed(3)}</td><td>${p.y.toFixed(3)}</td></tr>`
+  ).join("");
+}
+
+function updateParamDisplay(){
+  const m = currentModel();
+  rowCEl.style.display = m === "linear" ? "none" : "block";
+  rowDEl.style.display = m === "cubic" ? "block" : "none";
+
+  if(m === "linear") formulaEl.innerHTML = "<code>y = a*x + b</code>";
+  else if(m === "quadratic") formulaEl.innerHTML = "<code>y = a*x² + b*x + c</code>";
+  else formulaEl.innerHTML = "<code>y = a*x³ + b*x² + c*x + d</code>";
+}
+
+function readInitial(){
+  const m = currentModel();
+  const a = Number(initAEl.value);
+  const b = Number(initBEl.value);
+  const c = Number(initCEl.value);
+  const d = Number(initDEl.value);
+
+  if(m === "linear") return {a,b};
+  if(m === "quadratic") return {a,b,c};
+  return {a,b,c,d};
+}
+
+function predict(x){
+  const m = currentModel();
+  if(m === "linear") return params.a*x + params.b;
+  if(m === "quadratic") return params.a*x*x + params.b*x + params.c;
+  return params.a*x*x*x + params.b*x*x + params.c*x + params.d;
+}
+
+function lossValue(){
+  let sum = 0;
+  for(const p of data){
+    const diff = predict(p.x) - p.y;
+    sum += lossTypeEl.value === "mse" ? diff*diff : Math.abs(diff);
+  }
+  return sum / data.length;
+}
+
+function trainOneEpoch(){
+  const m = currentModel();
+  const rate = Number(lrEl.value);
+  const g = {a:0,b:0,c:0,d:0};
+
+  for(const p of data){
+    const diff = predict(p.x) - p.y;
+    const dLoss = lossTypeEl.value === "mse"
+      ? 2 * diff
+      : (diff > 0 ? 1 : (diff < 0 ? -1 : 0));
+
+    if(m === "linear"){
+      g.a += dLoss * p.x;
+      g.b += dLoss;
+    }else if(m === "quadratic"){
+      g.a += dLoss * p.x * p.x;
+      g.b += dLoss * p.x;
+      g.c += dLoss;
+    }else{
+      g.a += dLoss * p.x * p.x * p.x;
+      g.b += dLoss * p.x * p.x;
+      g.c += dLoss * p.x;
+      g.d += dLoss;
+    }
+  }
+
+  for(const key of Object.keys(params)){
+    params[key] -= rate * g[key] / data.length;
+  }
+  epoch++;
+}
+
+function train(n){
+  for(let i=0; i<n; i++){
+    trainOneEpoch();
+    if(!Object.values(params).every(Number.isFinite)) break;
+  }
+  update();
+}
+
+function resetTraining(){
+  params = readInitial();
+  epoch = 0;
+  update();
+}
+
+function fmt(v){
+  if(!Number.isFinite(v)) return "発散";
+  if(Math.abs(v) > 99999) return v.toExponential(3);
+  return v.toFixed(5);
+}
+
+function updateStats(){
+  let s = `epoch = ${epoch}\nLoss  = ${fmt(lossValue())}\n`;
+  for(const [k,v] of Object.entries(params)){
+    s += `${k} = ${fmt(v)}\n`;
+  }
+  statsEl.textContent = s;
+}
+
+function draw(){
+  const W = canvas.width, H = canvas.height, M = 55;
+  const xmin = -3.3, xmax = 3.3;
+  ctx.clearRect(0,0,W,H);
+
+  let ys = data.map(p => p.y);
+
+  if(Object.values(params).every(Number.isFinite)){
+    for(let i=0; i<=150; i++){
+      const x = xmin + (xmax-xmin)*i/150;
+      const y = predict(x);
+      if(Number.isFinite(y) && Math.abs(y) < 1e6) ys.push(y);
+    }
+  }
+
+  let ymin = Math.min(...ys);
+  let ymax = Math.max(...ys);
+  if(ymax-ymin < 1){ymin-=1; ymax+=1;}
+  const pad = (ymax-ymin)*0.12;
+  ymin -= pad; ymax += pad;
+
+  const X = x => M + (x-xmin)/(xmax-xmin)*(W-2*M);
+  const Y = y => H-M - (y-ymin)/(ymax-ymin)*(H-2*M);
+
+  ctx.strokeStyle = "#e5e5e5";
+  ctx.fillStyle = "#666";
+  ctx.font = "12px sans-serif";
+  ctx.lineWidth = 1;
+
+  for(let x=-3; x<=3; x++){
+    const px = X(x);
+    ctx.beginPath(); ctx.moveTo(px,M); ctx.lineTo(px,H-M); ctx.stroke();
+    ctx.fillText(String(x),px-4,H-M+18);
+  }
+
+  for(let i=0;i<=5;i++){
+    const y = ymin + (ymax-ymin)*i/5;
+    const py = Y(y);
+    ctx.beginPath(); ctx.moveTo(M,py); ctx.lineTo(W-M,py); ctx.stroke();
+    ctx.fillText(y.toFixed(1),6,py+4);
+  }
+
+  ctx.fillStyle = "#222";
+  for(const p of data){
+    ctx.beginPath();
+    ctx.arc(X(p.x),Y(p.y),4,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  if(Object.values(params).every(Number.isFinite)){
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let first = true;
+
+    for(let i=0;i<=300;i++){
+      const x = xmin + (xmax-xmin)*i/300;
+      const y = predict(x);
+      if(!Number.isFinite(y)) continue;
+      if(first){
+        ctx.moveTo(X(x),Y(y));
+        first = false;
+      }else{
+        ctx.lineTo(X(x),Y(y));
+      }
+    }
+    ctx.stroke();
+  }
+}
+
+function update(){
+  updateStats();
+  draw();
+}
+
+el("btn1").addEventListener("click",()=>train(1));
+el("btn5").addEventListener("click",()=>train(5));
+el("btn10").addEventListener("click",()=>train(10));
+el("btn100").addEventListener("click",()=>train(100));
+el("btnReset").addEventListener("click",resetTraining);
+
+modelTypeEl.addEventListener("change",()=>{
+  updateParamDisplay();
+  resetTraining();
+});
+
+lossTypeEl.addEventListener("change",resetTraining);
+
+dataTypeEl.addEventListener("change",()=>{
+  generateData();
+  resetTraining();
+});
+
+[initAEl,initBEl,initCEl,initDEl].forEach(x=>{
+  x.addEventListener("change",resetTraining);
+});
+
+updateParamDisplay();
+generateData();
+resetTraining();
+</script>
+</body>
+</html>
