@@ -7,6 +7,10 @@
   canvas {
     border: 1px solid #aaa;
   }
+  .buttons {
+    width: 600px;
+    text-align: center;
+  }
 </style>
 </head>
 
@@ -18,9 +22,12 @@
 
 <p id="status"></p>
 
+<div class="buttons">
 <button onclick="train(1)">1 epoch</button>
+<button onclick="train(10)">10 epoch</button>
 <button onclick="train(100)">100 epoch</button>
 <button onclick="resetModel()">Reset</button>
+</div>
 
 <script>
 
@@ -156,7 +163,9 @@ function draw() {
         sy(y2)
     );
 
+    ctx.strokeStyle = "red";
     ctx.stroke();
+    ctx.strokeStyle = "black";
 
 
     document.getElementById("status").textContent =

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>勾配ってなに？— パラメータ1つだけで見る</title>
+<style>
+  :root{
+    --paper:#FBF9F5;
+    --ink:#2B2B2E;
+    --ink-soft:#5b5b5f;
+    --data:#4A6D7C;
+    --line:#C1502E;
+    --ball:#8A7A3F;
+    --rule:#D8D3C7;
+    --panel:#F2EEE4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    line-height:1.6;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:48px 24px 80px;}
+  header{margin-bottom:36px;}
+  .kicker{font-family:Georgia,serif;font-style:italic;color:var(--ink-soft);font-size:15px;margin:0 0 6px;}
+  h1{font-family:Georgia,serif;font-size:32px;font-weight:400;margin:0 0 12px;}
+  .lede{max-width:62ch;color:var(--ink-soft);font-size:15.5px;margin:0;}
+
+  .board{display:grid;grid-template-columns:260px 1fr;gap:28px;margin-top:40px;align-items:start;}
+  @media (max-width:760px){.board{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--rule);padding:22px;}
+  .panel h2{font-family:Georgia,serif;font-weight:400;font-size:16px;margin:0 0 14px;}
+  .group{margin-bottom:20px;}
+  .group:last-child{margin-bottom:0;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+  input[type="range"]{width:100%;accent-color:var(--line);}
+
+  button{
+    font-family:inherit;font-size:13.5px;padding:10px 12px;
+    border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;width:100%;
+  }
+  button.secondary{background:transparent;color:var(--ink);}
+  .btnrow{display:flex;gap:8px;margin-top:8px;}
+
+  .calc{margin-top:6px;font-family:Georgia,serif;font-size:14.5px;border-top:1px solid var(--rule);padding-top:16px;}
+  .calc .line{display:flex;justify-content:space-between;margin-bottom:9px;}
+  .calc .line .label{font-style:italic;color:var(--ink-soft);font-size:13px;}
+  .calc .line .val{font-variant-numeric:tabular-nums;}
+  .calc .sub{font-size:11.5px;color:var(--ink-soft);margin:-5px 0 9px;}
+
+  .canvas-box{background:#fff;border:1px solid var(--rule);padding:20px;}
+  .canvas-box h3{font-family:Georgia,serif;font-weight:400;font-size:14px;color:var(--ink-soft);margin:0 0 12px;}
+  canvas{width:100%;display:block;}
+
+  .note{margin-top:40px;padding-top:22px;border-top:1px solid var(--rule);font-size:14px;color:var(--ink-soft);max-width:70ch;}
+  .note code{background:var(--panel);padding:1px 5px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">AI基礎学習 — No.1 補足（シンプル版）</p>
+    <h1>勾配ってなに？— パラメータ1つだけで見る</h1>
+    <p class="lede">
+      式を <code>y = a·x</code> にして、動かすパラメータを a ひとつだけにする。
+      Lossはひとつの谷（放物線）になり、ボールがその谷のどこにいるかだけを考えればよくなる。
+    </p>
+  </header>
+
+  <div class="board">
+    <div class="panel">
+      <div class="group">
+        <h2>データ（1点）</h2>
+        <div class="field">
+          <label>x</label>
+          <input type="range" id="xInput" min="1" max="5" step="0.5" value="3">
+        </div>
+        <div class="field">
+          <label>正解 y</label>
+          <input type="range" id="yInput" min="1" max="12" step="0.5" value="6">
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>今のa</h2>
+        <div class="field">
+          <label>a（ドラッグで動かせます） <span id="aVal">0.00</span></label>
+          <input type="range" id="aInput" min="-3" max="7" step="0.05" value="0">
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>学習率</h2>
+        <div class="field">
+          <label>lr <span id="lrVal">0.03</span></label>
+          <input type="range" id="lr" min="0.005" max="0.15" step="0.005" value="0.03">
+        </div>
+        <div class="btnrow"><button id="stepBtn">1ステップ転がす</button></div>
+        <div class="btnrow"><button id="resetBtn" class="secondary">a=0 に戻す</button></div>
+      </div>
+
+      <div class="group calc" id="calcBox"></div>
+    </div>
+
+    <div class="canvas-box">
+      <h3>Loss(a) の谷と、今のボールの位置</h3>
+      <canvas id="bowlCanvas" width="600" height="420"></canvas>
+    </div>
+  </div>
+
+  <p class="note">
+    見かた: 谷の形（放物線）は、データ x, y を決めた瞬間に決まってしまう。動かせるのは a、
+    つまりボールの左右の位置だけ。今ボールがいる場所の坂の傾きが勾配で、
+    傾きが右下がりならボールは右に転がすと下る、右上がりなら左に転がすと下る。
+    「1ステップ転がす」を押すたびに、その場所の傾きぶんだけ、逆向きに少し動く。
+    これを繰り返すと、ボールは自然と谷底（Lossが一番小さいa）に向かっていく。
+    谷底では傾きがちょうど0になるので、それ以上は動かなくなる。<br><br>
+    左のスライダーで x や y を変えると、谷の形そのものが変わる。
+    x を大きくすると谷が急になり（傾きが大きくなりやすく）、
+    学習率を上げすぎると一気に転がりすぎて反対側の斜面に飛び移ってしまう様子も試せる。
+  </p>
+</div>
+
+<script>
+(function(){
+  let a = 0, x = 3, y = 6;
+
+  const aInput = document.getElementById('aInput');
+  const xInput = document.getElementById('xInput');
+  const yInput = document.getElementById('yInput');
+  const aVal = document.getElementById('aVal');
+  const lrInput = document.getElementById('lr');
+  const lrVal = document.getElementById('lrVal');
+  const calcBox = document.getElementById('calcBox');
+
+  function compute(av){
+    const pred = av*x;
+    const err = pred - y;
+    const loss = err*err;
+    const grad = 2*err*x;
+    return {pred, err, loss, grad};
+  }
+
+  function renderCalc(){
+    const {pred, err, loss, grad} = compute(a);
+    const nearZero = Math.abs(grad) < 0.02;
+    calcBox.innerHTML = `
+      <div class="line"><span class="label">予測値 a·x</span><span class="val">${pred.toFixed(3)}</span></div>
+      <div class="line"><span class="label">誤差（予測−正解）</span><span class="val">${err.toFixed(3)}</span></div>
+      <div class="line"><span class="label">Loss（誤差²）</span><span class="val">${loss.toFixed(3)}</span></div>
+      <div class="sub">∂Loss/∂a = 2×誤差×x</div>
+      <div class="line"><span class="label">a の勾配</span><span class="val">${grad.toFixed(3)}</span></div>
+      ${nearZero ? '<div class="sub" style="color:var(--ball);">谷底に近づき、傾きがほぼ0。もう転がる先がない状態です。</div>' : ''}
+    `;
+  }
+
+  const bowlCanvas = document.getElementById('bowlCanvas');
+  const bctx = bowlCanvas.getContext('2d');
+
+  function drawBowl(){
+    const W = bowlCanvas.width, H = bowlCanvas.height;
+    bctx.clearRect(0,0,W,H);
+    const pad = 40;
+
+    const aStar = y/x; // 谷底の位置
+    const range = Math.max(3, Math.abs(a-aStar)*1.6 + 2.5);
+    const aMin = aStar-range, aMax = aStar+range;
+
+    const steps = 120;
+    let vals = [];
+    for(let i=0;i<=steps;i++){
+      const av = aMin + (aMax-aMin)*i/steps;
+      vals.push(compute(av).loss);
+    }
+    const lossMax = Math.max(...vals, 1e-6);
+
+    function toPx(av, l){
+      const px = pad + (av-aMin)/(aMax-aMin) * (W-2*pad);
+      const py = H-pad - (l/lossMax) * (H-2*pad);
+      return [px,py];
+    }
+
+    // 軸
+    bctx.strokeStyle = '#D8D3C7'; bctx.lineWidth = 1;
+    bctx.beginPath();
+    bctx.moveTo(pad,H-pad); bctx.lineTo(W-pad,H-pad);
+    bctx.moveTo(pad,pad); bctx.lineTo(pad,H-pad);
+    bctx.stroke();
+
+    // 谷底の目印（縦の点線）
+    const [bx,] = toPx(aStar, 0);
+    bctx.strokeStyle = '#EDE8DA'; bctx.setLineDash([4,4]);
+    bctx.beginPath(); bctx.moveTo(bx,pad); bctx.lineTo(bx,H-pad); bctx.stroke();
+    bctx.setLineDash([]);
+    bctx.fillStyle = '#b8ae9c'; bctx.font='11px -apple-system, sans-serif';
+    bctx.fillText('谷底 (a = '+aStar.toFixed(2)+')', bx+6, pad+14);
+
+    // 谷（放物線）
+    bctx.strokeStyle = '#4A6D7C'; bctx.lineWidth = 3;
+    bctx.beginPath();
+    for(let i=0;i<=steps;i++){
+      const av = aMin + (aMax-aMin)*i/steps;
+      const [px,py] = toPx(av, compute(av).loss);
+      if(i===0) bctx.moveTo(px,py); else bctx.lineTo(px,py);
+    }
+    bctx.stroke();
+
+    // 接線
+    const {loss:curLoss, grad} = compute(a);
+    const tRange = range*0.3;
+    const a1 = a-tRange, a2 = a+tRange;
+    const l1 = curLoss + grad*(a1-a), l2 = curLoss + grad*(a2-a);
+    const [tx1,ty1] = toPx(a1,l1), [tx2,ty2] = toPx(a2,l2);
+    bctx.strokeStyle = '#C1502E'; bctx.lineWidth = 2; bctx.setLineDash([5,4]);
+    bctx.beginPath(); bctx.moveTo(tx1,ty1); bctx.lineTo(tx2,ty2); bctx.stroke();
+    bctx.setLineDash([]);
+
+    // ボール
+    const [cx,cy] = toPx(a, curLoss);
+    const grd = bctx.createRadialGradient(cx-4,cy-5,1,cx,cy,11);
+    grd.addColorStop(0,'#c9b878'); grd.addColorStop(1,'#8A7A3F');
+    bctx.fillStyle = grd;
+    bctx.beginPath(); bctx.arc(cx,cy,10,0,Math.PI*2); bctx.fill();
+    bctx.strokeStyle = '#5b5b5f'; bctx.lineWidth=1; bctx.stroke();
+
+    // 動く向きの矢印
+    if(Math.abs(grad) > 0.02){
+      const dir = grad>0 ? -1 : 1;
+      const y0 = cy + 34;
+      bctx.strokeStyle = '#2B2B2E'; bctx.lineWidth = 2;
+      bctx.beginPath(); bctx.moveTo(cx, y0); bctx.lineTo(cx+dir*44, y0); bctx.stroke();
+      bctx.beginPath();
+      bctx.moveTo(cx+dir*44, y0);
+      bctx.lineTo(cx+dir*44-dir*8, y0-5);
+      bctx.lineTo(cx+dir*44-dir*8, y0+5);
+      bctx.closePath();
+      bctx.fillStyle = '#2B2B2E'; bctx.fill();
+      bctx.fillStyle = '#2B2B2E'; bctx.font = '12px -apple-system, sans-serif';
+      bctx.fillText('この向きに転がす', cx + (dir>0?4:-96), y0+16);
+    }
+  }
+
+  function render(){
+    aVal.textContent = a.toFixed(2);
+    renderCalc();
+    drawBowl();
+  }
+
+  aInput.addEventListener('input', ()=>{ a = parseFloat(aInput.value); render(); });
+  xInput.addEventListener('input', ()=>{ x = parseFloat(xInput.value); render(); });
+  yInput.addEventListener('input', ()=>{ y = parseFloat(yInput.value); render(); });
+  lrInput.addEventListener('input', ()=>{ lrVal.textContent = Number(lrInput.value).toFixed(3); });
+
+  document.getElementById('stepBtn').addEventListener('click', ()=>{
+    const lr = Number(lrInput.value);
+    const {grad} = compute(a);
+    a = a - lr*grad;
+    aInput.value = a;
+    render();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    a = 0;
+    aInput.value = 0;
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

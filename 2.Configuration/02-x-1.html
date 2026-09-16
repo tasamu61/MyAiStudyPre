@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>谷がひとつじゃない場合 — 局所解と初期値</title>
+<style>
+  :root{
+    --paper:#FBF9F5;
+    --ink:#2B2B2E;
+    --ink-soft:#5b5b5f;
+    --data:#4A6D7C;
+    --line:#C1502E;
+    --ball:#8A7A3F;
+    --local:#6B4E8E;
+    --global:#3E7A5B;
+    --rule:#D8D3C7;
+    --panel:#F2EEE4;
+    --warn:#9C3B2E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    line-height:1.6;
+  }
+  .wrap{max-width:940px;margin:0 auto;padding:48px 24px 80px;}
+  header{margin-bottom:36px;}
+  .kicker{font-family:Georgia,serif;font-style:italic;color:var(--ink-soft);font-size:15px;margin:0 0 6px;}
+  h1{font-family:Georgia,serif;font-size:32px;font-weight:400;margin:0 0 12px;}
+  .lede{max-width:64ch;color:var(--ink-soft);font-size:15.5px;margin:0;}
+
+  .board{display:grid;grid-template-columns:280px 1fr;gap:28px;margin-top:40px;align-items:start;}
+  @media (max-width:780px){.board{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--rule);padding:22px;}
+  .panel h2{font-family:Georgia,serif;font-weight:400;font-size:16px;margin:0 0 14px;}
+  .group{margin-bottom:20px;}
+  .group:last-child{margin-bottom:0;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-bottom:6px;}
+  input[type="range"]{width:100%;accent-color:var(--line);}
+
+  button{
+    font-family:inherit;font-size:13.5px;padding:10px 12px;
+    border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;width:100%;
+  }
+  button.secondary{background:transparent;color:var(--ink);}
+  button.tertiary{background:transparent;color:var(--ink-soft);border-color:var(--rule);font-size:12.5px;}
+  .btnrow{display:flex;gap:8px;margin-top:8px;}
+
+  .calc{margin-top:6px;font-family:Georgia,serif;font-size:14px;border-top:1px solid var(--rule);padding-top:16px;}
+  .calc .line{display:flex;justify-content:space-between;margin-bottom:8px;}
+  .calc .line .label{font-style:italic;color:var(--ink-soft);font-size:13px;}
+  .calc .line .val{font-variant-numeric:tabular-nums;}
+  .calc .sub{font-size:11.5px;color:var(--ink-soft);margin:2px 0 10px;}
+
+  .resultbox{
+    margin-top:14px;padding-top:14px;border-top:1px solid var(--rule);
+    font-size:12.5px;color:var(--ink-soft);
+  }
+  .resultbox .rline{display:flex;justify-content:space-between;margin-bottom:5px;}
+
+  .warning{
+    margin-top:14px;padding:10px 12px;background:#F6E9E6;border:1px solid var(--warn);
+    color:var(--warn);font-size:12.5px;display:none;
+  }
+
+  .canvas-box{background:#fff;border:1px solid var(--rule);padding:20px;}
+  .canvas-box h3{font-family:Georgia,serif;font-weight:400;font-size:14px;color:var(--ink-soft);margin:0 0 12px;}
+  canvas{width:100%;display:block;}
+
+  .note{margin-top:40px;padding-top:22px;border-top:1px solid var(--rule);font-size:14px;color:var(--ink-soft);max-width:74ch;}
+  .note code{background:var(--panel);padding:1px 5px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">AI基礎学習 — No.1 補足（発展編）</p>
+    <h1>谷がひとつじゃない場合 — 局所解と初期値</h1>
+    <p class="lede">
+      さっきの放物線は谷がひとつだけだったので、公式で一発解けた。
+      ここでは谷が2つある(浅い谷と、もっと深い谷がある)Lossの地形を用意した。
+      この場合、行き着く先は「出発点」次第で変わってしまう。
+    </p>
+  </header>
+
+  <div class="board">
+    <div class="panel">
+      <div class="group">
+        <h2>出発点</h2>
+        <div class="field">
+          <label>初期位置 a₀ <span id="a0Val">-3.00</span></label>
+          <input type="range" id="a0Input" min="-5" max="5" step="0.05" value="-3">
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>学習率</h2>
+        <div class="field">
+          <label>lr <span id="lrVal">0.05</span></label>
+          <input type="range" id="lr" min="0.005" max="0.3" step="0.005" value="0.05">
+        </div>
+        <div class="btnrow">
+          <button id="stepBtn">1ステップ転がす</button>
+        </div>
+        <div class="btnrow">
+          <button id="runBtn" class="secondary">自動で転がす</button>
+        </div>
+        <div class="btnrow">
+          <button id="resetBtn" class="secondary">出発点に戻す</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <button id="multiBtn" class="tertiary">いろいろな出発点(12か所)から試す</button>
+      </div>
+
+      <div class="group calc" id="calcBox"></div>
+      <div class="resultbox" id="resultBox"></div>
+      <p class="warning" id="warningBox">学習率が高すぎて、谷から飛び出してしまいました。</p>
+    </div>
+
+    <div class="canvas-box">
+      <h3>Lossの地形（谷が2つある）</h3>
+      <canvas id="landCanvas" width="640" height="420"></canvas>
+    </div>
+  </div>
+
+  <p class="note">
+    見かた: 左の浅い谷と、右の深い谷、Lossが本当に小さいのは深い谷の方（緑のマーク）。
+    でも出発点が浅い谷の側にあると、ボールは浅い谷に転がり込んで止まってしまい、
+    そこが「これ以上動かせない場所」になる（傾きが0になるので、勾配だけを頼りにしていると
+    そこが本当の底ではないことに気づけない）。<br><br>
+    「いろいろな出発点から試す」を押すと、12か所の異なる出発点から同時にシミュレーションして、
+    それぞれどちらの谷に落ち着いたかを下に印で残す。同じ地形・同じ学習率でも、
+    出発点だけで結果が変わることが分かるはず。これが「初期値をどう選ぶか」が
+    ニューラルネットの学習で重要になる理由のひとつ。<br><br>
+    学習率を上げすぎると、浅い谷にいたはずが勢い余って深い谷まで飛び越えてしまうこともある
+    （偶然うまくいくこともあれば、逆に発散することもある）。
+  </p>
+</div>
+
+<script>
+(function(){
+  // 谷が2つある非凸な地形（数式に深い意味はなく、教材用に作ったもの）
+  function lossFn(a){
+    return 0.045*Math.pow(a*a-9,2) - 0.5*a;
+  }
+  function gradFn(a){
+    const h = 1e-3;
+    return (lossFn(a+h)-lossFn(a-h))/(2*h);
+  }
+
+  const A_MIN=-5, A_MAX=5;
+
+  // 谷（局所的な極小点）をあらかじめスキャンして見つけておく
+  function findValleys(){
+    const N = 2000;
+    const vals = [];
+    for(let i=0;i<=N;i++){
+      const a = A_MIN + (A_MAX-A_MIN)*i/N;
+      vals.push({a, l: lossFn(a)});
+    }
+    const valleys = [];
+    for(let i=1;i<N;i++){
+      if(vals[i].l < vals[i-1].l && vals[i].l < vals[i+1].l){
+        valleys.push(vals[i]);
+      }
+    }
+    valleys.sort((p,q)=>p.l-q.l);
+    return valleys;
+  }
+  const valleys = findValleys();
+  const globalValley = valleys[0];
+
+  let a = -3, a0 = -3;
+  let running = false;
+  let rafTimer = null;
+  let multiResults = null;
+
+  const a0Input = document.getElementById('a0Input');
+  const a0Val = document.getElementById('a0Val');
+  const lrInput = document.getElementById('lr');
+  const lrVal = document.getElementById('lrVal');
+  const calcBox = document.getElementById('calcBox');
+  const resultBox = document.getElementById('resultBox');
+  const warningBox = document.getElementById('warningBox');
+  const runBtn = document.getElementById('runBtn');
+
+  a0Input.addEventListener('input', ()=>{
+    a0 = parseFloat(a0Input.value);
+    a0Val.textContent = a0.toFixed(2);
+    a = a0;
+    multiResults = null;
+    warningBox.style.display='none';
+    render();
+  });
+  lrInput.addEventListener('input', ()=>{ lrVal.textContent = Number(lrInput.value).toFixed(3); });
+
+  function renderCalc(){
+    const l = lossFn(a), g = gradFn(a);
+    const nearZero = Math.abs(g) < 0.03;
+    calcBox.innerHTML = `
+      <div class="line"><span class="label">今の a</span><span class="val">${a.toFixed(3)}</span></div>
+      <div class="line"><span class="label">Loss(a)</span><span class="val">${l.toFixed(3)}</span></div>
+      <div class="line"><span class="label">勾配（数値微分）</span><span class="val">${g.toFixed(3)}</span></div>
+      ${nearZero ? '<div class="sub" style="color:var(--ball);">傾きがほぼ0。ここが谷底かどうかは、この情報だけでは分からない。</div>' : ''}
+    `;
+  }
+
+  function whichValley(av){
+    let best = valleys[0], bestD = Infinity;
+    for(const v of valleys){
+      const d = Math.abs(v.a-av);
+      if(d<bestD){ bestD=d; best=v; }
+    }
+    return best;
+  }
+
+  function renderResultBox(){
+    if(!multiResults){ resultBox.innerHTML=''; return; }
+    const counts = {};
+    multiResults.forEach(r=>{
+      const v = whichValley(r.final);
+      const key = v===globalValley ? 'global' : 'local';
+      counts[key] = (counts[key]||0)+1;
+    });
+    resultBox.innerHTML = `
+      <div class="rline"><span>12か所中、深い谷（本当の最小）に到達</span><span>${counts.global||0}</span></div>
+      <div class="rline"><span>浅い谷で止まった</span><span>${counts.local||0}</span></div>
+    `;
+  }
+
+  const landCanvas = document.getElementById('landCanvas');
+  const lctx = landCanvas.getContext('2d');
+
+  function drawLandscape(){
+    const W = landCanvas.width, H = landCanvas.height;
+    lctx.clearRect(0,0,W,H);
+    const pad = 40;
+
+    const N = 300;
+    let vals = [];
+    for(let i=0;i<=N;i++){
+      const av = A_MIN + (A_MAX-A_MIN)*i/N;
+      vals.push({a:av, l: lossFn(av)});
+    }
+    const lMin = Math.min(...vals.map(v=>v.l));
+    const lMax = Math.max(...vals.map(v=>v.l));
+
+    function toPx(av,l){
+      const px = pad + (av-A_MIN)/(A_MAX-A_MIN) * (W-2*pad);
+      const py = H-pad - (l-lMin)/(lMax-lMin) * (H-2*pad);
+      return [px,py];
+    }
+
+    lctx.strokeStyle = '#D8D3C7'; lctx.lineWidth=1;
+    lctx.beginPath();
+    lctx.moveTo(pad,H-pad); lctx.lineTo(W-pad,H-pad);
+    lctx.moveTo(pad,pad); lctx.lineTo(pad,H-pad);
+    lctx.stroke();
+
+    // 地形
+    lctx.strokeStyle = '#4A6D7C'; lctx.lineWidth=3;
+    lctx.beginPath();
+    vals.forEach((v,i)=>{
+      const [px,py] = toPx(v.a,v.l);
+      if(i===0) lctx.moveTo(px,py); else lctx.lineTo(px,py);
+    });
+    lctx.stroke();
+
+    // 谷のマーク
+    valleys.forEach(v=>{
+      const [px,py] = toPx(v.a, v.l);
+      const isGlobal = v===globalValley;
+      lctx.fillStyle = isGlobal ? '#3E7A5B' : '#6B4E8E';
+      lctx.beginPath(); lctx.arc(px,py,5,0,Math.PI*2); lctx.fill();
+      lctx.font = '11px -apple-system, sans-serif';
+      lctx.fillText(isGlobal?'深い谷（本当の最小）':'浅い谷', px-20, py-12);
+    });
+
+    // 複数出発点の結果マーク
+    if(multiResults){
+      multiResults.forEach(r=>{
+        const v = whichValley(r.final);
+        const isGlobal = v===globalValley;
+        const [px] = toPx(r.final, 0);
+        const py = H-pad+18;
+        lctx.fillStyle = isGlobal ? '#3E7A5B' : '#6B4E8E';
+        lctx.beginPath(); lctx.arc(px,py,4,0,Math.PI*2); lctx.fill();
+      });
+    }
+
+    // 現在のボール
+    const curL = lossFn(a);
+    const [cx,cy] = toPx(a,curL);
+    const grd = lctx.createRadialGradient(cx-4,cy-5,1,cx,cy,11);
+    grd.addColorStop(0,'#c9b878'); grd.addColorStop(1,'#8A7A3F');
+    lctx.fillStyle = grd;
+    lctx.beginPath(); lctx.arc(cx,cy,10,0,Math.PI*2); lctx.fill();
+    lctx.strokeStyle = '#5b5b5f'; lctx.lineWidth=1; lctx.stroke();
+
+    // 出発点マーク
+    const [sx,sy] = toPx(a0, lossFn(a0));
+    lctx.strokeStyle = '#C1502E'; lctx.lineWidth = 1.5;
+    lctx.beginPath(); lctx.arc(sx,sy,7,0,Math.PI*2); lctx.stroke();
+  }
+
+  function render(){
+    renderCalc();
+    renderResultBox();
+    drawLandscape();
+  }
+
+  function trainStep(){
+    const lr = Number(lrInput.value);
+    const g = gradFn(a);
+    a = a - lr*g;
+    if(a < A_MIN-2 || a > A_MAX+2 || !isFinite(a)){
+      running = false;
+      runBtn.textContent = '自動で転がす';
+      warningBox.style.display = 'block';
+      a = Math.max(A_MIN, Math.min(A_MAX, a));
+    }
+  }
+
+  document.getElementById('stepBtn').addEventListener('click', ()=>{
+    trainStep();
+    render();
+  });
+
+  runBtn.addEventListener('click', ()=>{
+    running = !running;
+    runBtn.textContent = running ? '停止する' : '自動で転がす';
+    if(running) loop();
+  });
+
+  function loop(){
+    if(!running) return;
+    trainStep();
+    render();
+    if(!running) return;
+    rafTimer = setTimeout(()=>requestAnimationFrame(loop), 45);
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    running = false;
+    runBtn.textContent = '自動で転がす';
+    if(rafTimer) clearTimeout(rafTimer);
+    a = a0;
+    warningBox.style.display = 'none';
+    render();
+  });
+
+  document.getElementById('multiBtn').addEventListener('click', ()=>{
+    const lr = 0.04;
+    const starts = [];
+    for(let i=0;i<12;i++){
+      starts.push(A_MIN + (A_MAX-A_MIN)*i/11);
+    }
+    multiResults = starts.map(startA=>{
+      let av = startA;
+      for(let step=0; step<400; step++){
+        const g = gradFn(av);
+        av = av - lr*g;
+        if(!isFinite(av)) break;
+        av = Math.max(A_MIN-1, Math.min(A_MAX+1, av));
+      }
+      return {start: startA, final: av};
+    });
+    render();
+  });
+
+  a0Val.textContent = a0.toFixed(2);
+  render();
+})();
+</script>
+</body>
+</html>
