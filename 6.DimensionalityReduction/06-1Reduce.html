@@ -274,10 +274,15 @@
   }
 
   function runPCA(){
+    // ①標準化
     const {mean, std} = colStats(data);
     const used = transformMatrix(data, mean, std, standardize);
+
+    // ②共分散行列
     const C = covariance(used);
     const n = C.length;
+
+    // ③固有値問題を解く（固有値の大きい順に並べ替え、符号をそろえるところまで）
     let {eigenvalues, eigenvectors} = jacobiEigen(C, n);
 
     const order = eigenvalues.map((v,i)=>i).sort((a,b)=>eigenvalues[b]-eigenvalues[a]);
@@ -290,6 +295,7 @@
       if(vec[maxIdx]<0) for(let i=0;i<vec.length;i++) vec[i]*=-1;
     });
 
+    // ④上位2本（PC1・PC2）を採用して、5次元→2次元に射影する（スコア）
     const pc1 = sortedVecs[0], pc2 = sortedVecs[1];
     const scores = used.map(row=>{
       let s1=0,s2=0;
