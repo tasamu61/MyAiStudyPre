@@ -57,7 +57,7 @@ LLMではモデルの規模を7B、13Bなどと表現することがある。こ
 - ④256個のweightを補正：ONになっているマスの重みだけを、勾配ぶん補正する
 - ⑤biasを補正
 
-[03-2Train2.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/3.16x16Dots/03-2Train2.ipynb)
+<a href="https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/3.16x16Dots/03-2Train2.ipynb" target="_blank" rel="noopener noreferrer">03-2Train2.ipynb を開く（別ウィンドウ）</a>
 
 サンプルデータ10件で1000エポック学習させたのち、学習データにはない「1」の形を自分で作って判定させている。
 data2フォルダのファイルをそのまま読み込んでいたオリジナル版から、Colabでもそのまま動くように、
@@ -65,7 +65,7 @@ data2フォルダのファイルをそのまま読み込んでいたオリジナ
 
 ## 4.リテラルデータのJavaScriptデモ
 
-[03-116x16Dots.html](https://tasamu61.github.io/MyAiStudyPre/3.16x16Dots/03-116x16Dots.html)
+<a href="https://tasamu61.github.io/MyAiStudyPre/3.16x16Dots/03-116x16Dots.html" target="_blank" rel="noopener noreferrer">03-116x16Dots.html を開く（別ウィンドウ）</a>
 
 学習データ・評価データをすべてコード内のリテラルとして持ち、以下を確認できる。
 
@@ -76,7 +76,7 @@ data2フォルダのファイルをそのまま読み込んでいたオリジナ
 
 ## 5.発展：ライブラリを使った実装、他のお題での実装
 
-- [03-3TrainZu2G.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/3.16x16Dots/03-3TrainZu2G.ipynb)：
+- <a href="https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/3.16x16Dots/03-3TrainZu2G.ipynb" target="_blank" rel="noopener noreferrer">03-3TrainZu2G.ipynb を開く（別ウィンドウ）</a>：
   「バー(棒)」か否かを判定する、trainZu2G.pyのColab版。
-- [03-4TrainZu2Pt.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/3.16x16Dots/03-4TrainZu2Pt.ipynb)：
+- <a href="https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/3.16x16Dots/03-4TrainZu2Pt.ipynb" target="_blank" rel="noopener noreferrer">03-4TrainZu2Pt.ipynb を開く（別ウィンドウ）</a>：
   同じ問題をPyTorch（`nn.Linear`、`optimizer`）で解いた、TrainZu2Pt.pyのColab版。
