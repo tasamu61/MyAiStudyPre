@@ -20,7 +20,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
     line-height:1.6;
   }
-  .wrap{max-width:1100px;margin:0 auto;padding:48px 24px 80px;}
+  .wrap{max-width:1200px;margin:0 auto;padding:48px 24px 80px;}
   header{margin-bottom:36px;}
   .kicker{
     font-family:Georgia,"Times New Roman",serif;
@@ -38,7 +38,7 @@
   .lede{max-width:66ch;color:var(--ink-soft);font-size:15.5px;margin:0;}
   .board{
     display:grid;
-    grid-template-columns:340px 1fr;
+    grid-template-columns:440px 1fr;
     gap:28px;
     margin-top:40px;
     align-items:start;
@@ -49,7 +49,7 @@
   .group{margin-bottom:22px;}
   .group:last-child{margin-bottom:0;}
 
-  table.datatable{width:100%;border-collapse:collapse;font-size:12px;}
+  table.datatable{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}
   table.datatable th{
     font-family:Georgia,serif;font-style:italic;font-weight:400;
     text-align:left;color:var(--ink-soft);font-size:11px;
@@ -57,11 +57,11 @@
   }
   table.datatable td{padding:3px 3px;border-bottom:1px solid #eae5d8;}
   table.datatable td.rowlabel{
-    font-size:12px;white-space:nowrap;padding-right:6px;
+    width:74px;font-size:11.5px;white-space:nowrap;padding-right:6px;overflow:hidden;text-overflow:ellipsis;
   }
   table.datatable input{
-    width:100%;font-family:inherit;font-size:12px;
-    padding:4px 4px;border:1px solid var(--rule);background:#fff;
+    width:100%;font-family:inherit;font-size:13px;
+    padding:6px 5px;border:1px solid var(--rule);background:#fff;
   }
   .swatch{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
 
@@ -98,8 +98,8 @@
   .statline .label{font-style:italic;color:var(--ink-soft);}
 
   .note{
-    margin-top:40px;padding-top:22px;border-top:1px solid var(--rule);
-    font-size:14px;color:var(--ink-soft);max-width:76ch;
+    margin-top:0;padding-top:0;border-top:none;
+    font-size:13.5px;color:var(--ink-soft);max-width:none;
   }
   .note code{background:var(--panel);padding:1px 5px;font-size:13px;}
 </style>
@@ -170,19 +170,19 @@
         <h3>各主成分の寄与率</h3>
         <canvas id="varCanvas" width="760" height="150"></canvas>
       </div>
+
+      <p class="note">
+        見かた: 生データの散布図は、5諸元のうち選んだ2つだけを見ている。
+        PCAの散布図（バイプロット）は、5諸元すべての情報を最もよく保つように作った
+        2つの新しい軸（PC1・PC2）に車をプロットしたもの。矢印は元の各諸元が
+        PC1・PC2それぞれにどれくらい、どの向きに効いているかを表す
+        （矢印同士の向きが近いほど、その諸元同士は似た情報を持っている）。
+        上の寄与率グラフは、5次元あった情報のうち、PC1とPC2だけでどれくらいを説明できているかを示す。
+        「標準化してからPCAを行う」のチェックを外すと、価格（万円）のように数値が大きい諸元に
+        結果が引きずられる様子も比べられる。
+      </p>
     </div>
   </div>
-
-  <p class="note">
-    見かた: 生データの散布図は、5諸元のうち選んだ2つだけを見ている。
-    PCAの散布図（バイプロット）は、5諸元すべての情報を最もよく保つように作った
-    2つの新しい軸（PC1・PC2）に車をプロットしたもの。矢印は元の各諸元が
-    PC1・PC2それぞれにどれくらい、どの向きに効いているかを表す
-    （矢印同士の向きが近いほど、その諸元同士は似た情報を持っている）。
-    下の寄与率グラフは、5次元あった情報のうち、PC1とPC2だけでどれくらいを説明できているかを示す。
-    「標準化してからPCAを行う」のチェックを外すと、価格（万円）のように数値が大きい諸元に
-    結果が引きずられる様子も比べられる。
-  </p>
 </div>
 
 <script>
@@ -244,7 +244,7 @@
       if(off<tol) break;
       let theta;
       if(Math.abs(a[p][p]-a[q][q])<1e-15) theta = Math.PI/4 * (a[p][q]>=0?1:-1);
-      else theta = 0.5*Math.atan2(2*a[p][q], a[p][p]-a[q][q]);
+      else theta = 0.5*Math.atan2(2*a[p][q], a[q][q]-a[p][p]);
       const c=Math.cos(theta), s=Math.sin(theta);
       const app=c*c*a[p][p] - 2*s*c*a[p][q] + s*s*a[q][q];
       const aqq=s*s*a[p][p] + 2*s*c*a[p][q] + c*c*a[q][q];
@@ -382,6 +382,9 @@
       const [px,py] = toPx(row[rawXIdx], row[rawYIdx]);
       rctx.fillStyle = carColors[i];
       rctx.beginPath(); rctx.arc(px,py,6,0,Math.PI*2); rctx.fill();
+      rctx.fillStyle = '#2B2B2E';
+      rctx.font = '11px -apple-system, sans-serif';
+      rctx.fillText(carNames[i], px+9, py-8);
     });
   }
 
@@ -443,6 +446,9 @@
       const [px,py] = toPx(s[0], s[1]);
       bctx.fillStyle = carColors[i];
       bctx.beginPath(); bctx.arc(px,py,6,0,Math.PI*2); bctx.fill();
+      bctx.fillStyle = '#2B2B2E';
+      bctx.font = '11px -apple-system, sans-serif';
+      bctx.fillText(carNames[i], px+9, py-8);
     });
 
     carLegendEl.innerHTML = carNames.map((name,i)=>

@@ -50,6 +50,7 @@
   .calc .line .val{font-variant-numeric:tabular-nums;}
   .calc .sub{font-size:11.5px;color:var(--ink-soft);margin:-5px 0 9px;}
 
+  .canvases{display:flex;flex-direction:column;gap:20px;}
   .canvas-box{background:#fff;border:1px solid var(--rule);padding:20px;}
   .canvas-box h3{font-family:Georgia,serif;font-weight:400;font-size:14px;color:var(--ink-soft);margin:0 0 12px;}
   canvas{width:100%;display:block;}
@@ -104,20 +105,37 @@
       <div class="group calc" id="calcBox"></div>
     </div>
 
-    <div class="canvas-box">
-      <h3>Loss(a) の谷と、今のボールの位置</h3>
-      <canvas id="bowlCanvas" width="600" height="420"></canvas>
+    <div class="canvases">
+      <div class="canvas-box">
+        <h3>①学習データと、今の直線 y = a·x</h3>
+        <canvas id="dataCanvas" width="600" height="240"></canvas>
+      </div>
+      <div class="canvas-box">
+        <h3>②クローズアップ ― 予測値と正解のズレ（誤差）</h3>
+        <canvas id="closeupCanvas" width="600" height="240"></canvas>
+      </div>
+      <div class="canvas-box">
+        <h3>③Loss(a) の谷と、今のボールの位置</h3>
+        <canvas id="bowlCanvas" width="600" height="300"></canvas>
+      </div>
     </div>
   </div>
 
   <p class="note">
-    見かた: 谷の形（放物線）は、データ x, y を決めた瞬間に決まってしまう。動かせるのは a、
+    見かた: ①は学習データの点 (x, y) と、今の a で引いた直線 y = a·x を、いつも見ているグラフと同じ形で示す。
+    直線が点からどれだけ離れているかが、そのまま②のクローズアップに拡大される。
+    ②では予測値（直線上の点）と正解（データの点）の縦のズレが誤差であり、この誤差を2乗したものがLossになる。<br><br>
+    注意: ①と②を見比べると、同じ直線（同じ a）のはずなのに、見た目の傾きが違って見える。
+    これは②がx軸・y軸それぞれの目盛り（軸に添えた数値）を見るとわかる通り、
+    誤差が見やすいようにx・yの表示範囲（1目盛りあたりの実際の量）を①とは別々に拡大しているためで、
+    aの値そのものが変わっているわけではない。軸の数値を確認しながら見比べてほしい。<br><br>
+    ③の谷の形（放物線）は、データ x, y を決めた瞬間に決まってしまう。動かせるのは a、
     つまりボールの左右の位置だけ。今ボールがいる場所の坂の傾きが勾配で、
     傾きが右下がりならボールは右に転がすと下る、右上がりなら左に転がすと下る。
     「1ステップ転がす」を押すたびに、その場所の傾きぶんだけ、逆向きに少し動く。
     これを繰り返すと、ボールは自然と谷底（Lossが一番小さいa）に向かっていく。
-    谷底では傾きがちょうど0になるので、それ以上は動かなくなる。<br><br>
-    左のスライダーで x や y を変えると、谷の形そのものが変わる。
+    谷底では傾きがちょうど0になるので、それ以上は動かなくなる。①でも直線がちょうど点を通る状態にあたる。<br><br>
+    左のスライダーで x や y を変えると、①の点の位置と③の谷の形そのものが変わる。
     x を大きくすると谷が急になり（傾きが大きくなりやすく）、
     学習率を上げすぎると一気に転がりすぎて反対側の斜面に飛び移ってしまう様子も試せる。
   </p>
@@ -156,8 +174,170 @@
     `;
   }
 
+  const dataCanvas = document.getElementById('dataCanvas');
+  const dctx = dataCanvas.getContext('2d');
+  const closeupCanvas = document.getElementById('closeupCanvas');
+  const cuctx = closeupCanvas.getContext('2d');
   const bowlCanvas = document.getElementById('bowlCanvas');
   const bctx = bowlCanvas.getContext('2d');
+
+  // ---------- 軸の目盛り（数値付き）を描く共通処理 ----------
+  function niceStep(range, targetCount){
+    const raw = range / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    let step;
+    if(norm < 1.5) step = 1;
+    else if(norm < 3) step = 2;
+    else if(norm < 7) step = 5;
+    else step = 10;
+    return step * mag;
+  }
+
+  function formatNum(v){
+    return (Math.round(v*1000)/1000).toString();
+  }
+
+  // mode: 'zero'  … 0の位置に軸線がある通常のグラフ（①用）
+  //       'edge'  … 表示範囲の左端・下端を軸として使う（②のクローズアップ用）
+  function drawTicks(ctx, toPx, xMin, xMax, yMin, yMax, mode){
+    ctx.save();
+    ctx.strokeStyle = '#a49c89'; ctx.fillStyle = '#8f897c';
+    ctx.font = '10.5px -apple-system, sans-serif'; ctx.lineWidth = 1;
+    const tickLen = 5;
+    const xStep = niceStep(xMax-xMin, 6);
+    const yStep = niceStep(yMax-yMin, 5);
+
+    const axisY = (mode === 'zero' && yMin <= 0 && yMax >= 0) ? 0 : yMin;
+    const axisX = (mode === 'zero' && xMin <= 0 && xMax >= 0) ? 0 : xMin;
+    const axisPy = toPx(0, axisY)[1];
+    const axisPx = toPx(axisX, 0)[0];
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for(let v = Math.ceil(xMin/xStep)*xStep; v <= xMax+1e-9; v += xStep){
+      const [px] = toPx(v, axisY);
+      ctx.beginPath(); ctx.moveTo(px, axisPy-tickLen/2); ctx.lineTo(px, axisPy+tickLen/2); ctx.stroke();
+      ctx.fillText(formatNum(v), px, axisPy+tickLen+2);
+    }
+
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for(let v = Math.ceil(yMin/yStep)*yStep; v <= yMax+1e-9; v += yStep){
+      const [, py] = toPx(axisX, v);
+      ctx.beginPath(); ctx.moveTo(axisPx-tickLen/2, py); ctx.lineTo(axisPx+tickLen/2, py); ctx.stroke();
+      ctx.fillText(formatNum(v), axisPx-tickLen-3, py);
+    }
+    ctx.restore();
+  }
+
+  // ---------- ①学習データと、今の直線 ----------
+  function drawDataGraph(){
+    const W = dataCanvas.width, H = dataCanvas.height, pad = 36;
+    dctx.clearRect(0,0,W,H);
+
+    const xMin = -0.5, xMax = 6;
+    const pred = a*x;
+    const yMin = Math.min(0, y, pred) - 1.5;
+    const yMax = Math.max(0, y, pred) + 1.5;
+
+    function toPx(px_x, px_y){
+      const px = pad + (px_x-xMin)/(xMax-xMin) * (W-2*pad);
+      const py = H-pad - (px_y-yMin)/(yMax-yMin) * (H-2*pad);
+      return [px,py];
+    }
+
+    // 軸
+    dctx.strokeStyle = '#D8D3C7'; dctx.lineWidth = 1;
+    dctx.beginPath();
+    const [ax0,ay0] = toPx(xMin,0), [ax1,ay1] = toPx(xMax,0);
+    dctx.moveTo(ax0,ay0); dctx.lineTo(ax1,ay1);
+    const [bx0,by0] = toPx(0,yMin), [bx1,by1] = toPx(0,yMax);
+    dctx.moveTo(bx0,by0); dctx.lineTo(bx1,by1);
+    dctx.stroke();
+
+    // 目盛り（数値）
+    drawTicks(dctx, toPx, xMin, xMax, yMin, yMax, 'zero');
+
+    // 直線 y = a*x
+    dctx.strokeStyle = '#C1502E'; dctx.lineWidth = 2.5;
+    dctx.beginPath();
+    const [lx0,ly0] = toPx(xMin, a*xMin), [lx1,ly1] = toPx(xMax, a*xMax);
+    dctx.moveTo(lx0,ly0); dctx.lineTo(lx1,ly1);
+    dctx.stroke();
+
+    // 誤差の縦線（予測値↔正解）
+    const [ex,ey1] = toPx(x, pred), [,ey2] = toPx(x, y);
+    dctx.strokeStyle = '#9C3B2E'; dctx.lineWidth = 1.5; dctx.setLineDash([4,4]);
+    dctx.beginPath(); dctx.moveTo(ex,ey1); dctx.lineTo(ex,ey2); dctx.stroke();
+    dctx.setLineDash([]);
+
+    // 正解データ点
+    const [dx,dy] = toPx(x,y);
+    dctx.fillStyle = '#4A6D7C';
+    dctx.beginPath(); dctx.arc(dx,dy,6,0,Math.PI*2); dctx.fill();
+    dctx.fillStyle = '#5b5b5f'; dctx.font = '12px -apple-system, sans-serif';
+    dctx.fillText('正解 (x, y)', dx+9, dy-8);
+
+    // 予測点
+    const [px2,py2] = toPx(x,pred);
+    dctx.fillStyle = '#C1502E';
+    dctx.beginPath(); dctx.arc(px2,py2,5,0,Math.PI*2); dctx.fill();
+    dctx.fillText('予測 a·x', px2+9, py2+16);
+  }
+
+  // ---------- ②クローズアップ：予測値と正解のズレ ----------
+  function drawCloseup(){
+    const W = closeupCanvas.width, H = closeupCanvas.height, pad = 46;
+    cuctx.clearRect(0,0,W,H);
+
+    const pred = a*x;
+    const err = pred - y;
+    const xMin = x-1, xMax = x+1;
+    const span = Math.max(Math.abs(err)*1.8, 0.6);
+    const yMin = Math.min(pred,y) - span*0.4;
+    const yMax = Math.max(pred,y) + span*0.4;
+
+    function toPx(px_x, px_y){
+      const px = pad + (px_x-xMin)/(xMax-xMin) * (W-2*pad);
+      const py = H-pad - (px_y-yMin)/(yMax-yMin) * (H-2*pad);
+      return [px,py];
+    }
+
+    // 枠
+    cuctx.strokeStyle = '#D8D3C7'; cuctx.lineWidth = 1;
+    cuctx.strokeRect(pad,pad,W-2*pad,H-2*pad);
+
+    // 目盛り（数値）― 表示範囲がごく狭いので、①より細かい桁まで見える
+    drawTicks(cuctx, toPx, xMin, xMax, yMin, yMax, 'edge');
+
+    // 直線の断片（この区間だけ）
+    cuctx.strokeStyle = '#C1502E'; cuctx.lineWidth = 2.5;
+    cuctx.beginPath();
+    const [lx0,ly0] = toPx(xMin, a*xMin), [lx1,ly1] = toPx(xMax, a*xMax);
+    cuctx.moveTo(lx0,ly0); cuctx.lineTo(lx1,ly1);
+    cuctx.stroke();
+
+    // 誤差の縦線
+    const [ex,ey1] = toPx(x, pred), [,ey2] = toPx(x, y);
+    cuctx.strokeStyle = '#9C3B2E'; cuctx.lineWidth = 2; cuctx.setLineDash([5,4]);
+    cuctx.beginPath(); cuctx.moveTo(ex,ey1); cuctx.lineTo(ex,ey2); cuctx.stroke();
+    cuctx.setLineDash([]);
+
+    // 正解点・予測点
+    const [dx,dy] = toPx(x,y);
+    cuctx.fillStyle = '#4A6D7C';
+    cuctx.beginPath(); cuctx.arc(dx,dy,7,0,Math.PI*2); cuctx.fill();
+    const [px2,py2] = toPx(x,pred);
+    cuctx.fillStyle = '#C1502E';
+    cuctx.beginPath(); cuctx.arc(px2,py2,6,0,Math.PI*2); cuctx.fill();
+
+    // ラベル（誤差の値をそのまま表示）
+    cuctx.fillStyle = '#2B2B2E'; cuctx.font = '13px -apple-system, sans-serif';
+    const midY = (ey1+ey2)/2;
+    cuctx.fillText('誤差 = ' + err.toFixed(3), ex+10, midY);
+    cuctx.fillStyle = '#5b5b5f'; cuctx.font = '11.5px -apple-system, sans-serif';
+    cuctx.fillText('正解 y = ' + y.toFixed(2), dx-40, dy + (dy>py2?18:-12));
+    cuctx.fillText('予測 a·x = ' + pred.toFixed(2), px2-52, py2 + (py2>dy?18:-12));
+  }
 
   function drawBowl(){
     const W = bowlCanvas.width, H = bowlCanvas.height;
@@ -245,6 +425,8 @@
   function render(){
     aVal.textContent = a.toFixed(2);
     renderCalc();
+    drawDataGraph();
+    drawCloseup();
     drawBowl();
   }
 
