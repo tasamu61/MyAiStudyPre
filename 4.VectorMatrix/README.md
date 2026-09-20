@@ -47,16 +47,108 @@ numpyの行列演算で書いた場合との対比を通じて、機械学習で
 一番大きいもの（argmax）を採用する。
 
 - [04-2Train3.py](04-2Train3.py) / [04-2Train3.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/4.VectorMatrix/04-2Train3.ipynb)：
-  素の言語機能（for文だけ）で書いた版。3重・4重のfor文で、行列の掛け算を1要素ずつ計算している。
+  素の言語機能（for文だけ）で書いた版
 - [04-3numpy3.py](04-3numpy3.py) / [04-3numpy3.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/4.VectorMatrix/04-3numpy3.ipynb)：
-  numpyの行列演算（`@`）で書いた版。for文で書いていた計算が、`X @ weights.T + bias` のような
-  数行の行列演算に置き換わる。
+  numpyの行列演算（`@`）で書いた版
 
 両者は数学的にまったく同じ計算をしており、実際に実行すると同じLossの推移・同じ判定結果になる
-（浮動小数点の丸め誤差程度の違いしかない）。素の言語機能版を読めば「行列演算が中身で何をしているか」
-が、numpy版を読めば「同じ計算を実務ではどう簡潔に書くか」が、それぞれ分かるようにしてある。
-どちらも、data3フォルダのファイルを読み込むオリジナル版（.py）と、Colabでも動くようリテラルに
-変えた版（.ipynb）の両方を置いている。
+（浮動小数点の丸め誤差程度の違いしかない）。どちらも、data3フォルダのファイルを読み込む
+オリジナル版（.py）と、Colabでも動くようリテラルに変えた版（.ipynb）の両方を置いている。
+
+### 相違点：該当コードの比較
+
+学習ループの中身を、処理ごとに並べて比較する。
+
+**① 予測（15件×3クラス分の判定値を出す）**
+
+素の言語機能版は、「1件ごと・1クラスごとに、256個の入力と重みを掛けて足す」という計算を、
+三重のfor文でそのまま書く。
+
+```python
+prediction = [[0.0, 0.0, 0.0] for _ in range(len(X))]
+for i in range(len(X)):
+    for c in range(3):
+        z = bias[c]
+        for j in range(256):
+            z += X[i][j] * weights[c][j]
+        prediction[i][c] = z
+```
+
+numpy版は、この三重ループが行列積`@`1行に置き換わる。`X`（15×256）と`weights.T`（256×3）の
+行列積を取り、`bias`（3）を足すだけで、同じ15×256×3のマス目の掛け算・足し算がすべて実行される。
+
+```python
+prediction = X @ weights.T + bias
+```
+
+**② Loss（全件・全クラス分の2乗誤差を1つの数値にする）**
+
+素の言語機能版は、二重ループで1つずつ足し合わせる。
+
+```python
+loss = 0.0
+for i in range(len(X)):
+    for c in range(3):
+        loss += diff[i][c] ** 2
+```
+
+numpy版は、配列全体を2乗してから合計する`np.sum`にまとめる。
+
+```python
+loss = np.sum(diff ** 2)
+```
+
+**③④ weightのgradient（3クラス×256入力ぶんの補正量を求める）**
+
+ここが一番差が大きい部分である。素の言語機能版は、「クラスcの重み、入力位置jについて、
+15件ぶんのgradientと入力を掛けて合計する」という計算を、三重ループで書く。
+
+```python
+weight_gradient = [[0.0] * 256 for _ in range(3)]
+for c in range(3):
+    for j in range(256):
+        total = 0.0
+        for i in range(len(X)):
+            total += gradient[i][c] * X[i][j]
+        weight_gradient[c][j] = total
+```
+
+numpy版は、この三重ループが「`gradient`を転置してから`X`と行列積を取る」という1行に置き換わる。
+
+```python
+weight_gradient = gradient.T @ X
+```
+
+`gradient`は15×3、転置すると3×15になり、`X`（15×256）との行列積で3×256になる。
+これは、素の言語機能版の三重ループが計算しているものと、要素ごとに完全に同じ値になる
+（「15件ぶんについて合計する」という同じ計算を、行列積の定義がそのまま肩代わりしている）。
+
+**⑤ biasのgradient**
+
+素の言語機能版は、クラスごとに15件ぶんを合計する。
+
+```python
+bias_gradient = [0.0, 0.0, 0.0]
+for c in range(3):
+    total = 0.0
+    for i in range(len(X)):
+        total += gradient[i][c]
+    bias_gradient[c] = total
+```
+
+numpy版は、`axis=0`（15件の方向）を指定して合計するだけになる。
+
+```python
+bias_gradient = np.sum(gradient, axis=0)
+```
+
+### まとめ
+
+どちらのコードも、やっていることの数学的な中身はまったく同じである。違いは「15件・3クラス・256入力、
+という3重の繰り返しを、自分でfor文を書いて回すか」「その繰り返しを行列の形に落とし込み、
+行列積・転置・合計といった演算に置き換えて、numpyに実行させるか」という書き方の違いだけである。
+素の言語機能版を読めば、numpyの`@`が中でどんな計算をしているかが分かり、numpy版を読めば、
+実務ではこの計算をどれだけ簡潔に書けるかが分かる。
 
 ## 4.JavaScriptデモ
 
