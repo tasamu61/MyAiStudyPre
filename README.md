@@ -1,3 +1,12 @@
+<!--
+・章「１．機械学習の基本」、節は「4.1 はじめに」のような表記に統一
+・プログラム名は章番号-章内項番簡単な英名　01-1Primitive.py のようにする。 \
+・htmlベース見せる場合はjavacrtipt。pythonはgoogle colabで実行できるような形式とする
+・htmlのリンクは以下形式、説明をつけるか否かは文脈により決める。
+[03-116x16Dots.html](https://tasamu61.github.io/MyAiStudyPre/3.16x16Dots/03-116x16Dots.html)
+・python colabのリンクは以下、、説明をつけるか否かは文脈により決める。
+- **[06-3pca_scratch.ipynb（ライブラリなし版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/6.DimensionReduction/06-3pca_scratch.ipynb)**：
+-->
 # プログラマのための機械学習、AIシステムへのいざない
 
 　本コンテンツは一般のITエンジニア、プログラマを対象にAI,機械学習の基礎的な事柄について説明するものである。  
@@ -8,11 +17,6 @@
  
  　コード例はPythonを基本としているが、WEB上で動作して見せることもありJavaScriptも多用している。Pythonの場合はGoogle Colabでの実行を考慮して提供している。
 
-＃＃＃ １．章は完成形のサンプル、  
-＃＃＃ ２．章は作成途上で追加して完成を依頼、  
-＃＃＃ ３．章は一部サンプルだけあるので完成を依頼  
-＃＃＃　プログラム名は章番号-章内項番簡単な英名　例 01-1Primitive.py のようにする。 
-＃＃＃ htmlベース見せる場合はjavacrtipt。pythonはgoogle colabで実行できるような形式 
  [１．機械学習の基本](1.MachineLearningBasic)  
 　　基本的、な機械学習の方法についてコードを用いて具体的に説明している。
 
@@ -34,14 +38,3 @@
 [７．ニューラルネットワーク]()
 　予定してるだけ、中身はこれから
 　  
-## 🚀 実行方法
-
-### 1. ブラウザで手軽に試す（Webアプリ）
-以下のリンクから、インストール不要でブラウザ上で動作を確認できます。
-- [Webアプリを開く（GitHub Pages）](https://tasamu61.github.io/MyAiStudyPre/)
-
----
-
-### 2. Google Colabでコードを実行・編集する
-以下のバッジをクリックすると、Google Colab 上で PyTorch コードを直接実行できます。
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/demo1.ipynb)
