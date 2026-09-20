@@ -1,0 +1,19 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>文字・Token分類デモ</title>
+<style>body{font-family:sans-serif;margin:24px;line-height:1.5;background:#fafafa}.p{background:white;border:1px solid #ccc;border-radius:8px;padding:14px;margin:12px 0}.g{display:grid;grid-template-columns:1fr 1fr;gap:14px}textarea{width:100%;height:70px}button,select{padding:6px;margin:3px}.parts{background:#eee;padding:8px;word-break:break-all}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:4px}@media(max-width:700px){.g{grid-template-columns:1fr}}</style></head><body>
+<h1>文字・Tokenによる旅行文章分類</h1><p>10件だけを学習した単純な分類です。文章理解の限界も試してください。</p>
+<div class="p"><select id="s"></select><button onclick="loadS()">サンプル読込</button><textarea id="i"></textarea><button onclick="judge()">判定</button></div>
+<div class="g"><div class="p"><h2>文字単位</h2><div id="cp" class="parts"></div><div id="cr"></div></div><div class="p"><h2>Token単位</h2><div id="tp" class="parts"></div><div id="tr"></div></div></div>
+<div class="p"><h2>学習データ10件</h2><div id="tbl"></div></div>
+<script>
+const T=[["沖縄の海でシュノーケリングを楽しみたい", 1], ["京都まで新幹線で行き寺を見学する", 1], ["ホテルを予約して北海道を三日間観光する", 1], ["成田からパリへの航空券を探している", 1], ["温泉旅館に泊まり箱根を散策したい", 1], ["Pythonでファイルを読み込む方法を調べる", 0], ["今日の夕食はカレーを作る予定だ", 0], ["会社の会議資料を明日までに作成する", 0], ["野球の試合結果をニュースで確認した", 0], ["新しいパソコンのメモリを増設したい", 0]],Q=["来月、飛行機で沖縄へ行く", "京都の写真をパソコンに保存する", "駅まで歩いて会社へ行く"],L=["旅行以外","旅行"];
+function chars(x){return [...x].filter(c=>!/[\s、。,.!?！？]/.test(c))}
+const D=["シュノーケリング","パソコン","Python","ファイル","ニュース","新幹線","航空券","北海道","ホテル","温泉旅館","会議資料","メモリ","カレー","沖縄","京都","成田","パリ","箱根","観光","予約","散策","会社","野球","試合","夕食","飛行機","写真","保存","駅","行く"];
+function toks(x){let r=[],i=0,d=[...D].sort((a,b)=>b.length-a.length);while(i<x.length){let h=d.find(w=>x.startsWith(w,i));if(h){r.push(h);i+=h.length}else{let c=x[i++];if(!/[\s、。,.!?！？]/.test(c))r.push(c)}}return r}
+function train(split){let cn=[0,0],c=[{},{}],n=[0,0],v=new Set;T.forEach(([x,y])=>{cn[y]++;split(x).forEach(z=>{v.add(z);c[y][z]=(c[y][z]||0)+1;n[y]++})});return{cn,c,n,v}}
+function pred(x,m,split){let a=split(x),sc=[0,1].map(y=>{let q=Math.log(m.cn[y]/10);a.forEach(z=>q+=Math.log(((m.c[y][z]||0)+1)/(m.n[y]+m.v.size)));return q});return{a,sc,y:+(sc[1]>sc[0])}}
+const cm=train(chars),tm=train(toks);
+function show(r){return `旅行以外=${r.sc[0].toFixed(2)}<br>旅行=${r.sc[1].toFixed(2)}<br><b>判定：${L[r.y]}</b>`}
+function judge(){let x=i.value,a=pred(x,cm,chars),b=pred(x,tm,toks);cp.textContent=a.a.join(" / ");tp.textContent=b.a.join(" / ");cr.innerHTML=show(a);tr.innerHTML=show(b)}
+Q.forEach((x,j)=>s.add(new Option(x,j)));function loadS(){i.value=Q[s.value];judge()}
+tbl.innerHTML="<table><tr><th>No</th><th>文章</th><th>分類</th></tr>"+T.map((x,j)=>`<tr><td>${j+1}</td><td>${x[0]}</td><td>${L[x[1]]}</td></tr>`).join("")+"</table>";i.value=Q[0];judge();
+</script></body></html>
