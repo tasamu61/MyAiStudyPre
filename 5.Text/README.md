@@ -8,7 +8,7 @@
 
 旅行5件、旅行以外5件、合計10件を学習し、**文字単位**と**Token単位**の判定を比較する。
 
-[文字・Token分類デモを実行](https://tasamu61.github.io/MyAiStudyPre/5.CharacterToken/05-3CharacterTokenDemo.html)
+[文字・Token分類デモを実行](https://tasamu61.github.io/MyAiStudyPre/5.Text/05-3CharacterTokenDemo.html)
 
 用意した3件の推論サンプルのほか、自由な文章を入力して両方式の判定を比較できる。
 
@@ -39,7 +39,7 @@
 
 旅行／旅行以外で各文字が何回現れたかを学習し、入力文の文字から判定する。文字処理には外部ライブラリを使わずPythonだけで実装する。
 
-[05-1Character.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.CharacterToken/05-1Character.ipynb)
+[05-1Character.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.Text/05-1Character.ipynb)
 
 文字だけでは「京都」を `京` と `都` に分けて見ることになり、単語の意味や文章の文脈は分からない。
 
@@ -55,7 +55,7 @@
 
 Colab版では日本語形態素解析ライブラリ `Janome` を利用する。
 
-[05-2Token.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.CharacterToken/05-2Token.ipynb)
+[05-2Token.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.Text/05-2Token.ipynb)
 
 Tokenにすれば文字よりまとまった単位を扱えるが、このモデルも基本的には**どのTokenが何回現れたか**を見ているだけである。
 
