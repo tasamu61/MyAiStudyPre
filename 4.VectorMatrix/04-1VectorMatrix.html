@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ベクトル・行列デモ ― 「|」「-」「/」の3クラス判定</title>
+<style>
+  :root{
+    --paper:#FBF9F5; --ink:#2B2B2E; --ink-soft:#5b5b5f;
+    --line:#C1502E; --rule:#D8D3C7; --panel:#F2EEE4;
+    --c0:#4A6D7C; --c1:#8A7A3F; --c2:#6B4E8E;
+    --ok:#3E7A5B; --ng:#9C3B2E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    line-height:1.6;}
+  .wrap{max-width:1080px;margin:0 auto;padding:36px 20px 64px;}
+  h1{font-size:20px;margin:0 0 6px;}
+  .lede{color:var(--ink-soft);font-size:13.5px;margin:0 0 28px;max-width:74ch;}
+  .panel{background:var(--panel);border:1px solid var(--rule);padding:18px;margin-bottom:20px;}
+  .panel h2{font-size:14px;margin:0 0 12px;color:var(--ink-soft);font-weight:600;}
+  .gallery{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  @media (max-width:760px){.gallery{grid-template-columns:repeat(3,1fr);}}
+  .cell{background:#fff;border:1px solid var(--rule);padding:6px;text-align:center;font-size:11px;}
+  .cell canvas{width:100%;image-rendering:pixelated;border:1px solid var(--rule);}
+  .cell .cls0{color:var(--c0);} .cell .cls1{color:var(--c1);} .cell .cls2{color:var(--c2);}
+  .cell .score{font-variant-numeric:tabular-nums;margin-top:3px;}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  button{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--ink);
+    background:var(--ink);color:var(--paper);cursor:pointer;}
+  button.secondary{background:transparent;color:var(--ink);}
+  .stat{font-size:13px;margin-bottom:10px;}
+  .weights{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .weights .box{text-align:center;}
+  .weights canvas{width:100%;image-rendering:pixelated;border:1px solid var(--rule);}
+  .weights .label{font-size:12px;margin-top:6px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left;}
+  th{color:var(--ink-soft);font-weight:600;font-size:11.5px;}
+  .ok{color:var(--ok);font-weight:600;} .ng{color:var(--ng);font-weight:600;}
+  .draw-board{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;}
+  @media (max-width:700px){.draw-board{grid-template-columns:1fr;}}
+  #drawCanvas{width:256px;height:256px;border:1px solid var(--rule);cursor:crosshair;background:#fff;}
+  .bars{display:flex;flex-direction:column;gap:10px;}
+  .bar-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .bar-row .name{width:70px;}
+  .bar-track{flex:1;height:16px;background:#EDE8DA;position:relative;}
+  .bar-fill{position:absolute;left:0;top:0;bottom:0;}
+  .bar-val{width:60px;text-align:right;font-variant-numeric:tabular-nums;}
+  .note{margin-top:24px;padding-top:16px;border-top:1px solid var(--rule);
+    font-size:13px;color:var(--ink-soft);max-width:78ch;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ベクトル・行列デモ ―「|」「-」「/」の3クラス判定</h1>
+  <p class="lede">
+    3章の「1か、1でないか」を、「| (0)」「- (1)」「/ (2)」の3クラス判定に拡張したもの。
+    重みは256入力×3クラス分の行列（3×256）、予測は行列とベクトルの積として一度に計算される。
+  </p>
+
+  <div class="panel">
+    <h2>① 教師データ（15件）</h2>
+    <div class="gallery" id="trainGallery"></div>
+  </div>
+
+  <div class="panel">
+    <h2>② 学習</h2>
+    <div class="btnrow">
+      <button data-epoch="1">+1 epoch</button>
+      <button data-epoch="10">+10 epoch</button>
+      <button data-epoch="100">+100 epoch</button>
+      <button class="secondary" id="resetBtn">リセット</button>
+    </div>
+    <div class="stat" id="statBox"></div>
+  </div>
+
+  <div class="panel">
+    <h2>③ 3クラス分の重みの可視化</h2>
+    <div class="weights" id="weightBoxes"></div>
+  </div>
+
+  <div class="panel">
+    <h2>④ 評価データ（学習には使っていない6件）</h2>
+    <table>
+      <thead><tr><th>ファイル</th><th>正解</th><th>| のスコア</th><th>- のスコア</th><th>/ のスコア</th><th>判定</th></tr></thead>
+      <tbody id="evalBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>⑤ 自分で描いて判定</h2>
+    <div class="draw-board">
+      <div>
+        <canvas id="drawCanvas" width="16" height="16"></canvas>
+        <div class="btnrow" style="margin-top:10px;">
+          <button class="secondary" id="clearDraw">クリア</button>
+        </div>
+      </div>
+      <div class="bars" id="drawBars"></div>
+    </div>
+  </div>
+
+  <p class="note">
+    重みは3クラス×256入力の行列（W）、バイアスは3クラス分のベクトル（b）として持っている。
+    予測は「入力ベクトル(256) × 重み行列の転置(256×3) + バイアス(3)」という行列演算1回で、
+    3クラス分のスコアが同時に求まる。学習も、15件全部をまとめて行列のまま処理する
+    （1件ずつループで回さない）バッチ処理になっている。同じ計算をfor文だけで書いたPython版
+    （04-2Train3.ipynb）と、numpyの行列演算で書いた版（04-3numpy3.ipynb）を見比べると、
+    行列演算が実際には何をしているかがよく分かる。
+  </p>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const CLASS_NAMES = ["|", "-", "/"];
+const CLASS_COLORS = ["#4A6D7C", "#8A7A3F", "#6B4E8E"];
+
+// ①教師データ(15件)。文字列の"1"がON、"0"がOFF。ファイル名先頭の数字が正解クラス。
+const TRAINING_RAW = [
+  ["0_01.txt", ["0000000000000000","0000000000000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000000000000","0000000000000000"]],
+  ["0_02.txt", ["0000000000000000","0000000000000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000010000000","0000000000000000","0000000000000000"]],
+  ["0_03.txt", ["0000000000000000","0000000000000000","0000000000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000001000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["0_04.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000001000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["1_01.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0011111111111100","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["1_02.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0011111111111100","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["1_03.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0001111111111000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["1_04.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0001111111111000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["2_01.txt", ["0000000000000000","0000000000000000","0000000000000100","0000000000001000","0000000000010000","0000000000100000","0000000001000000","0000000010000000","0000000100000000","0000001000000000","0000010000000000","0000100000000000","0001000000000000","0010000000000000","0000000000000000","0000000000000000"]],
+  ["2_02.txt", ["0000000000000000","0000000000000000","0000000000001000","0000000000010000","0000000000100000","0000000001000000","0000000010000000","0000000100000000","0000001000000000","0000010000000000","0000100000000000","0001000000000000","0010000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["2_03.txt", ["0000000000000000","0000000000000010","0000000000000100","0000000000001000","0000000000010000","0000000000100000","0000000001000000","0000000010000000","0000000100000000","0000001000000000","0000010000000000","0000100000000000","0001000000000000","0010000000000000","0000000000000000","0000000000000000"]],
+  ["2_04.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000100","0000000000001000","0000000000010000","0000000000100000","0000000001000000","0000000010000000","0000000100000000","0000001000000000","0000010000000000","0000100000000000","0001000000000000","0000000000000000","0000000000000000"]],
+];
+
+// ④評価データ(6件、学習には使っていない)
+const EVAL_RAW = [
+  ["0_05.txt", ["0000000000000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000100000000","0000000000000000"]],
+  ["1_05.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0111111111111110","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["2_05.txt", ["0000000000000000","0000000000000000","0000000000000010","0000000000000100","0000000000001000","0000000000010000","0000000000100000","0000000001000000","0000000010000000","0000000100000000","0000001000000000","0000010000000000","0000100000000000","0001000000000000","0000000000000000","0000000000000000"]],
+["0_eval1.txt", ["0000000000000000","0000000000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000010000000000","0000000000000000","0000000000000000"]],
+  ["1_eval1.txt", ["0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0011111111111100","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000","0000000000000000"]],
+  ["2_eval1.txt", ["0000000000000000","0000000000000000","0000000000010000","0000000000100000","0000000001000000","0000000010000000","0000000100000000","0000001000000000","0000010000000000","0000100000000000","0001000000000000","0010000000000000","0100000000000000","1000000000000000","0000000000000000","0000000000000000"]],
+];
+
+function toBits(rows){
+  const bits = [];
+  for(const row of rows) for(const ch of row) bits.push(ch === "1" ? 1.0 : 0.0);
+  return bits;
+}
+
+function loadSet(raw){
+  return raw.map(([name, rows]) => ({
+    filename: name,
+    classId: parseInt(name[0], 10),
+    bits: toBits(rows),
+  }));
+}
+
+const trainingData = loadSet(TRAINING_RAW);
+const evalData = loadSet(EVAL_RAW);
+
+// ------------------------------------
+// モデル：weights 3x256, bias 3
+// ------------------------------------
+let weights, bias, epoch;
+
+function createModel(){
+  return {
+    weights: Array.from({length:3}, () => new Array(256).fill(0)),
+    bias: [0,0,0],
+  };
+}
+
+let model = createModel();
+epoch = 0;
+
+function predict(bits, m){
+  const z = [0,0,0];
+  for(let c=0;c<3;c++){
+    let s = m.bias[c];
+    const w = m.weights[c];
+    for(let j=0;j<256;j++) s += bits[j]*w[j];
+    z[c] = s;
+  }
+  return z;
+}
+
+function argmax(z){
+  let idx = 0;
+  for(let c=1;c<3;c++) if(z[c] > z[idx]) idx = c;
+  return idx;
+}
+
+const RATE = 0.04/4;
+
+function trainEpochs(count){
+  for(let e=0;e<count;e++){
+    // ①Prediction: 15 x 3
+    const prediction = trainingData.map(td => predict(td.bits, model));
+    // ②diff, gradient: 15 x 3
+    const gradient = prediction.map((z, i) => {
+      const target = [0,0,0]; target[trainingData[i].classId] = 1.0;
+      return z.map((v,c) => 2*(v - target[c]));
+    });
+    // ③weight_gradient: 3 x 256 = gradient.T @ X
+    const weightGrad = Array.from({length:3}, () => new Array(256).fill(0));
+    for(let c=0;c<3;c++){
+      for(let j=0;j<256;j++){
+        let total = 0;
+        for(let i=0;i<trainingData.length;i++) total += gradient[i][c]*trainingData[i].bits[j];
+        weightGrad[c][j] = total;
+      }
+    }
+    // ④bias_gradient: 3
+    const biasGrad = [0,0,0];
+    for(let c=0;c<3;c++){
+      let total = 0;
+      for(let i=0;i<trainingData.length;i++) total += gradient[i][c];
+      biasGrad[c] = total;
+    }
+    // ⑤更新
+    for(let c=0;c<3;c++){
+      for(let j=0;j<256;j++) model.weights[c][j] -= RATE*weightGrad[c][j];
+      model.bias[c] -= RATE*biasGrad[c];
+    }
+    epoch++;
+  }
+}
+
+function currentLoss(){
+  let loss = 0;
+  for(const td of trainingData){
+    const z = predict(td.bits, model);
+    const target = [0,0,0]; target[td.classId] = 1.0;
+    for(let c=0;c<3;c++) loss += (z[c]-target[c])**2;
+  }
+  return loss;
+}
+
+// ------------------------------------
+// 描画系
+// ------------------------------------
+function drawBitsToCanvas(canvas, bits, color){
+  canvas.width = 16; canvas.height = 16;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(16,16);
+  for(let i=0;i<256;i++){
+    const on = bits[i] > 0.5;
+    const [r,g,b] = on ? hexToRgb(color) : [255,255,255];
+    img.data[i*4+0]=r; img.data[i*4+1]=g; img.data[i*4+2]=b; img.data[i*4+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+}
+function hexToRgb(hex){
+  const v = parseInt(hex.slice(1),16);
+  return [(v>>16)&255,(v>>8)&255,v&255];
+}
+
+function renderGallery(){
+  const box = document.getElementById('trainGallery');
+  box.innerHTML = '';
+  trainingData.forEach(td=>{
+    const z = predict(td.bits, model);
+    const ans = argmax(z);
+    const div = document.createElement('div');
+    div.className = 'cell';
+    const canvas = document.createElement('canvas');
+    div.appendChild(canvas);
+    const cls = document.createElement('div');
+    cls.className = 'cls'+td.classId;
+    cls.textContent = '正解:'+CLASS_NAMES[td.classId];
+    div.appendChild(cls);
+    const score = document.createElement('div');
+    score.className = 'score';
+    score.innerHTML = (ans===td.classId? '<span style="color:var(--ok)">○</span>' : '<span style="color:var(--ng)">×</span>') +
+      ' → ' + CLASS_NAMES[ans];
+    div.appendChild(score);
+    box.appendChild(div);
+    drawBitsToCanvas(canvas, td.bits, CLASS_COLORS[td.classId]);
+  });
+}
+
+function renderStats(){
+  const box = document.getElementById('statBox');
+  const loss = currentLoss();
+  let correct = 0;
+  for(const td of trainingData) if(argmax(predict(td.bits, model)) === td.classId) correct++;
+  box.innerHTML = 'epoch = ' + epoch + '　　Loss = ' + loss.toFixed(6) +
+    '　　教師データ正答 = ' + correct + ' / ' + trainingData.length;
+}
+
+function renderWeights(){
+  const box = document.getElementById('weightBoxes');
+  box.innerHTML = '';
+  for(let c=0;c<3;c++){
+    const wrap = document.createElement('div');
+    wrap.className = 'box';
+    const canvas = document.createElement('canvas');
+    canvas.width = 16; canvas.height = 16;
+    wrap.appendChild(canvas);
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = 'クラス「' + CLASS_NAMES[c] + '」の重み';
+    wrap.appendChild(label);
+    box.appendChild(wrap);
+
+    const w = model.weights[c];
+    const maxAbs = Math.max(1e-6, ...w.map(v=>Math.abs(v)));
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(16,16);
+    for(let i=0;i<256;i++){
+      const v = w[i]/maxAbs; // -1..1
+      let r,g,b;
+      if(v>=0){ r=255-Math.round(v*(255-74)); g=255-Math.round(v*(255-109)); b=255-Math.round(v*(255-124)); }
+      else{ const a=-v; r=255-Math.round(a*(255-193)); g=255-Math.round(a*(255-80)); b=255-Math.round(a*(255-46)); }
+      img.data[i*4+0]=r; img.data[i*4+1]=g; img.data[i*4+2]=b; img.data[i*4+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+  }
+}
+
+function renderEval(){
+  const tbody = document.getElementById('evalBody');
+  tbody.innerHTML = '';
+  for(const td of evalData){
+    const z = predict(td.bits, model);
+    const ans = argmax(z);
+    const correct = ans === td.classId;
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+td.filename+'</td>' +
+      '<td>'+CLASS_NAMES[td.classId]+'</td>' +
+      '<td>'+z[0].toFixed(3)+'</td><td>'+z[1].toFixed(3)+'</td><td>'+z[2].toFixed(3)+'</td>' +
+      '<td class="'+(correct?'ok':'ng')+'">'+(correct?'○ ':'× ')+CLASS_NAMES[ans]+'</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+// ------------------------------------
+// お絵描きキャンバス
+// ------------------------------------
+const drawCanvas = document.getElementById('drawCanvas');
+let drawBits = new Array(256).fill(0);
+
+function renderDrawCanvas(){
+  const ctx = drawCanvas.getContext('2d');
+  const img = ctx.createImageData(16,16);
+  for(let i=0;i<256;i++){
+    const on = drawBits[i] > 0.5;
+    img.data[i*4+0]= on?43:255; img.data[i*4+1]= on?43:255; img.data[i*4+2]= on?46:255; img.data[i*4+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+}
+
+function renderDrawBars(){
+  const box = document.getElementById('drawBars');
+  const z = predict(drawBits, model);
+  const maxAbs = Math.max(1, ...z.map(Math.abs));
+  box.innerHTML = '';
+  const ans = argmax(z);
+  for(let c=0;c<3;c++){
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    const pct = Math.max(0, Math.min(100, 50 + (z[c]/maxAbs)*50));
+    row.innerHTML = '<div class="name">'+CLASS_NAMES[c]+(c===ans?' ←':'')+'</div>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+CLASS_COLORS[c]+';"></div></div>' +
+      '<div class="bar-val">'+z[c].toFixed(3)+'</div>';
+    box.appendChild(row);
+  }
+}
+
+function cellFromEvent(e){
+  const rect = drawCanvas.getBoundingClientRect();
+  const scaleX = 16/rect.width, scaleY = 16/rect.height;
+  const x = Math.floor((e.clientX-rect.left)*scaleX);
+  const y = Math.floor((e.clientY-rect.top)*scaleY);
+  return {x,y};
+}
+
+let painting = false;
+function paintAt(e){
+  const {x,y} = cellFromEvent(e);
+  if(x<0||x>=16||y<0||y>=16) return;
+  drawBits[y*16+x] = 1.0;
+  renderDrawCanvas();
+  renderDrawBars();
+}
+drawCanvas.addEventListener('mousedown', e=>{ painting=true; paintAt(e); });
+drawCanvas.addEventListener('mousemove', e=>{ if(painting) paintAt(e); });
+window.addEventListener('mouseup', ()=> painting=false);
+document.getElementById('clearDraw').addEventListener('click', ()=>{
+  drawBits = new Array(256).fill(0);
+  renderDrawCanvas(); renderDrawBars();
+});
+
+// ------------------------------------
+// 学習ボタン
+// ------------------------------------
+function renderAll(){
+  renderGallery();
+  renderStats();
+  renderWeights();
+  renderEval();
+  renderDrawBars();
+}
+
+document.querySelectorAll('button[data-epoch]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    trainEpochs(parseInt(btn.getAttribute('data-epoch'),10));
+    renderAll();
+  });
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  model = createModel();
+  epoch = 0;
+  renderAll();
+});
+
+renderDrawCanvas();
+renderAll();
+})();
+</script>
+</body>
+</html>
