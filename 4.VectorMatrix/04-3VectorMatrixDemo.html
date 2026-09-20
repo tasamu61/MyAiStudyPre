@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>16×16 3パターン認識デモ</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;line-height:1.6}h1{font-size:1.6rem}.wrap{display:flex;gap:28px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(16,18px);border:1px solid #777;width:max-content}.cell{width:18px;height:18px;border:1px solid #eee;box-sizing:border-box;cursor:pointer}.on{background:#222}.panel{min-width:320px}button{margin:4px;padding:7px 12px}.bar{height:22px;background:#ddd;margin:6px 0;position:relative}.fill{height:100%;background:#888}.label{position:absolute;left:6px;top:0;font-size:13px}.note{background:#f5f5f5;padding:10px 14px}code{background:#f3f3f3;padding:2px 4px}</style>
+</head><body>
+<h1>第4章：16×16 3パターン認識デモ</h1>
+<p>16×16 = 256個の入力から、<code>|</code>、<code>-</code>、<code>/</code> の3種類を判定します。各マスをクリックして図形を変えられます。</p>
+<div class="wrap"><div><div id="grid" class="grid"></div><p>
+<button onclick="setPattern('v')">|</button><button onclick="setPattern('h')">-</button><button onclick="setPattern('s')">/</button><button onclick="clearGrid()">クリア</button></p></div>
+<div class="panel"><h2>判定値</h2><div id="bars"></div><h2 id="answer">判定：</h2>
+<div class="note"><b>行列として見ると</b><br>入力 <code>x : 1×256</code><br>重み <code>W : 3×256</code><br><code>x @ W.T + b → 1×3</code></div></div></div>
+<script>
+const N=16; let bits=Array(N*N).fill(0);
+const grid=document.getElementById('grid');
+for(let i=0;i<N*N;i++){let d=document.createElement('div');d.className='cell';d.onclick=()=>{bits[i]^=1;render();};grid.appendChild(d);}
+function template(kind,shift=0){let a=Array(N*N).fill(0);for(let r=0;r<N;r++)for(let c=0;c<N;c++){let on=false;if(kind==='v')on=Math.abs(c-(7+shift))<=1&&r>1&&r<14;if(kind==='h')on=Math.abs(r-(7+shift))<=1&&c>1&&c<14;if(kind==='s')on=Math.abs(c-(14-r+shift))<=1&&r>1&&r<14;if(on&&c>=0&&c<N)a[r*N+c]=1;}return a;}
+const train=[];['v','h','s'].forEach((k,cls)=>[-2,-1,0,1,2].forEach(sh=>train.push({x:template(k,sh),cls})));
+let W=Array.from({length:3},()=>Array(256).fill(0)),B=[0,0,0],rate=.01;
+for(let ep=0;ep<600;ep++){let gw=Array.from({length:3},()=>Array(256).fill(0)),gb=[0,0,0];for(const t of train){let p=W.map((w,k)=>w.reduce((s,v,i)=>s+v*t.x[i],B[k]));for(let k=0;k<3;k++){let target=k===t.cls?1:0,g=2*(p[k]-target);gb[k]+=g;for(let i=0;i<256;i++)gw[k][i]+=g*t.x[i];}}for(let k=0;k<3;k++){B[k]-=rate*gb[k];for(let i=0;i<256;i++)W[k][i]-=rate*gw[k][i];}}
+function predict(){return W.map((w,k)=>w.reduce((s,v,i)=>s+v*bits[i],B[k]));}
+function render(){[...grid.children].forEach((d,i)=>d.className='cell'+(bits[i]?' on':''));let p=predict(),names=['|','-','/'];let max=Math.max(...p),min=Math.min(...p),range=Math.max(.001,max-min);document.getElementById('bars').innerHTML=p.map((v,i)=>`<div class="bar"><div class="fill" style="width:${15+75*(v-min)/range}%"></div><span class="label">${names[i]} : ${v.toFixed(3)}</span></div>`).join('');let a=p.indexOf(max);document.getElementById('answer').textContent='判定：'+names[a];}
+function setPattern(k){bits=template(k,0);render()} function clearGrid(){bits.fill(0);render()} setPattern('s');
+</script></body></html>
