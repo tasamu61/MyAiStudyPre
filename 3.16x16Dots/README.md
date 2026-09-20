@@ -44,7 +44,7 @@ Colabでは`data2`フォルダを一緒に配置できないため、後述の03
 
 - **入力**：16×16=256マスそれぞれのON(1)/OFF(0)
 - **モデル**：256個の重み（各マスに1つずつ）＋バイアス1個。あわせて257個のパラメータ
-- **予測式**：$z = \sum_{i=1}^{256} w_i x_i + b$ を求め、シグモイド関数 $\sigma(z) = \dfrac{1}{1+e^{-z}}$ に通して0〜1の値にする
+- **予測式**：$z = \sum_{i=1}^{256} w_i x_i + b$ を求め、シグモイド関数 $\sigma(z) = \frac{1}{1+e^{-z}}$ に通して0〜1の値にする
 - **判定**：予測値が0.5以上なら「1である」、未満なら「1ではない」
 
 1章のy=a\*x+bと発想は同じで、「入力に重みを掛けて足し合わせ、正解に近づくよう重みを補正する」という
@@ -56,13 +56,23 @@ Colabでは`data2`フォルダを一緒に配置できないため、後述の03
 以下の①〜⑤の手順で学習する。1・2章から一貫して使っている手順（予測→Loss→微分→補正）と同じである。
 
 - ①予測：現在の重み・バイアスで予測値を出す（$z=\sum w_ix_i+b$ を求めてから $p=\sigma(z)$ にする）
-- ②Loss：$\text{Loss} = (p-t)^2$（予測値と正解の差の2乗）
-- ③微分：欲しいのは $\dfrac{\partial \text{Loss}}{\partial z}$（zを動かすとLossがどう変わるか）。
+- ②Loss：$Loss = (p-t)^2$（予測値と正解の差の2乗）
+- ③微分：欲しいのは $\frac{\partial Loss}{\partial z}$（zを動かすとLossがどう変わるか）。
   pを介した連鎖律（chain rule）で、2段階に分けて求める。
 
-  $$\frac{\partial \text{Loss}}{\partial z} = \underbrace{\frac{\partial \text{Loss}}{\partial p}}_{2(p-t)} \times \underbrace{\frac{\partial p}{\partial z}}_{p(1-p)} = 2(p-t)\, p(1-p)$$
+  まず、LossをPで微分すると
 
-  1章の $\text{Loss}=(p-t)^2$ の微分と同じ $2(p-t)$ に、シグモイド関数自身の微分 $p(1-p)$ が
+  $$\frac{\partial Loss}{\partial p} = 2(p-t)$$
+
+  次に、$p=\sigma(z)$ をzで微分すると（シグモイド関数自身の微分）
+
+  $$\frac{\partial p}{\partial z} = p(1-p)$$
+
+  この2つを連鎖律で掛け合わせると
+
+  $$\frac{\partial Loss}{\partial z} = \frac{\partial Loss}{\partial p} \times \frac{\partial p}{\partial z} = 2(p-t) \times p(1-p)$$
+
+  1章の $Loss=(p-t)^2$ の微分と同じ $2(p-t)$ に、シグモイド関数自身の微分 $p(1-p)$ が
   掛け算で加わった形になっている。
 - ④256個のweightを補正：ONになっているマスの重みだけを、勾配ぶん補正する
 - ⑤biasを補正
