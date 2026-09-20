@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>16×16 3パターン認識 - ベクトル・行列デモ</title>
+<style>
+body{font-family:system-ui,"Yu Gothic",sans-serif;margin:20px;line-height:1.5;background:#fafafa}
+h1{font-size:1.5rem}.layout{display:grid;grid-template-columns:340px 1fr;gap:20px}
+.panel{background:white;border:1px solid #ccc;border-radius:8px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(16,16px);width:256px;border:1px solid #777}
+.cell,.wcell{width:16px;height:16px;box-sizing:border-box;border:1px solid #eee;background:white}
+.cell.on{background:#222}.cell{cursor:pointer}
+.controls button,.controls select{margin:3px;padding:6px 9px}
+.barrow{display:grid;grid-template-columns:28px 1fr 72px;gap:8px;align-items:center;margin:7px 0}
+.barbg{height:18px;background:#eee;position:relative}.bar{height:100%;background:#555}
+.shape{font-family:monospace;font-size:1.05rem;padding:10px;background:#f3f3f3}
+.weights{display:flex;gap:14px;flex-wrap:wrap}.wgrid{display:grid;grid-template-columns:repeat(16,9px);width:144px}
+.wcell{width:9px;height:9px;border:0}
+table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{border:1px solid #ddd;padding:4px 6px;text-align:center}
+.ok{font-weight:bold}.lossbox{font-family:monospace}
+@media(max-width:850px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>16×16 3パターン認識 ― ベクトル・行列デモ</h1>
+<p>同じ学習を「入力」「判定値」「行列の形」「Loss」「学習した重み」「全15件の結果」から見ます。</p>
+<div class="layout">
+<section>
+<div class="panel">
+<h2>入力 16×16</h2>
+<div class="controls">
+<select id="sample"></select>
+<button id="load">読込</button>
+<button id="clear">クリア</button>
+</div>
+<div id="inputGrid" class="grid"></div>
+<p>マスをクリックして入力を変更できます。</p>
+</div>
+<div class="panel">
+<h2>学習</h2>
+<div class="controls">
+<button data-step="1">+1 epoch</button>
+<button data-step="10">+10</button>
+<button data-step="100">+100</button>
+<button id="reset">Reset</button>
+</div>
+<div class="lossbox">epoch = <span id="epoch">0</span><br>Loss = <span id="loss">-</span></div>
+</div>
+</section>
+<section>
+<div class="panel">
+<h2>判定値</h2>
+<div id="scores"></div>
+<div>判定：<strong id="answer">未学習</strong></div>
+</div>
+<div class="panel">
+<h2>行列として見る</h2>
+<div class="shape">X (15×256) @ W.T (256×3) + bias (3) → Prediction (15×3)</div>
+<p>15件を一度に計算すると、各データについて3個の判定値が得られます。</p>
+</div>
+<div class="panel">
+<h2>学習した重み 3×256</h2>
+<p>各クラスの256個の重みを16×16に戻して表示します。濃淡は重みの符号と大きさを表します。</p>
+<div id="weights" class="weights"></div>
+</div>
+<div class="panel">
+<h2>15件の学習データの判定</h2>
+<div id="results"></div>
+</div>
+</section>
+</div>
+<script>
+const PATTERNS = {"0_01.txt": ["                ", "                ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "                ", "                "], "0_02.txt": ["                ", "                ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "        ■       ", "                ", "                "], "0_03.txt": ["                ", "                ", "                ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "      ■         ", "                ", "                ", "                "], "0_04.txt": ["                ", "                ", "                ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "         ■      ", "                ", "                ", "                "], "0_05.txt": ["                ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "       ■        ", "                "], "1_01.txt": ["                ", "                ", "                ", "                ", "                ", "                ", "                ", "  ■■■■■■■■■■■■  ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "                "], "1_02.txt": ["                ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "  ■■■■■■■■■■■■  ", "                ", "                ", "                ", "                ", "                ", "                ", "                "], "1_03.txt": ["                ", "                ", "                ", "                ", "                ", "                ", "   ■■■■■■■■■■   ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "                "], "1_04.txt": ["                ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "   ■■■■■■■■■■   ", "                ", "                ", "                ", "                ", "                ", "                "], "1_05.txt": ["                ", "                ", "                ", "                ", "                ", "                ", "                ", " ■■■■■■■■■■■■■■ ", "                ", "                ", "                ", "                ", "                ", "                ", "                ", "                "], "2_01.txt": ["                ", "                ", "             ■  ", "            ■   ", "           ■    ", "          ■     ", "         ■      ", "        ■       ", "       ■        ", "      ■         ", "     ■          ", "    ■           ", "   ■            ", "  ■             ", "                ", "                "], "2_02.txt": ["                ", "                ", "            ■   ", "           ■    ", "          ■     ", "         ■      ", "        ■       ", "       ■        ", "      ■         ", "     ■          ", "    ■           ", "   ■            ", "  ■             ", "                ", "                ", "                "], "2_03.txt": ["                ", "              ■ ", "             ■  ", "            ■   ", "           ■    ", "          ■     ", "         ■      ", "        ■       ", "       ■        ", "      ■         ", "     ■          ", "    ■           ", "   ■            ", "  ■             ", "                ", "                "], "2_04.txt": ["                ", "                ", "                ", "             ■  ", "            ■   ", "           ■    ", "          ■     ", "         ■      ", "        ■       ", "       ■        ", "      ■         ", "     ■          ", "    ■           ", "   ■            ", "                ", "                "], "2_05.txt": ["                ", "                ", "              ■ ", "             ■  ", "            ■   ", "           ■    ", "          ■     ", "         ■      ", "        ■       ", "       ■        ", "      ■         ", "     ■          ", "    ■           ", "   ■            ", "                ", "                "]};
+const LABELS = ["|","-","/"];
+const files = Object.keys(PATTERNS).sort();
+const samples = files.map(name => ({
+  name, cls:+name[0],
+  bits:PATTERNS[name].flatMap(line => [...line].map(ch=>ch==="■"?1:0))
+}));
+let W, B, epoch, current;
+const rate=0.04/samples.length;
+
+const grid=document.getElementById("inputGrid");
+for(let i=0;i<256;i++){
+  const d=document.createElement("div"); d.className="cell";
+  d.onclick=()=>{current[i]=1-current[i]; renderInput(); renderScores();};
+  grid.appendChild(d);
+}
+const sel=document.getElementById("sample");
+files.forEach(f=>{const o=document.createElement("option");o.value=f;o.textContent=`${LABELS[+f[0]]}  ${f}`;sel.appendChild(o);});
+
+function resetModel(){
+  W=Array.from({length:3},()=>Array(256).fill(0));
+  B=[0,0,0]; epoch=0;
+  document.getElementById("epoch").textContent=epoch;
+  renderAll();
+}
+function loadSample(){
+  current=[...samples.find(s=>s.name===sel.value).bits]; renderInput(); renderScores();
+}
+function renderInput(){
+  [...grid.children].forEach((d,i)=>d.className=current[i]?"cell on":"cell");
+}
+function predict(bits){
+  return W.map((row,c)=>row.reduce((s,w,i)=>s+w*bits[i],B[c]));
+}
+function lossAll(){
+  let loss=0;
+  for(const s of samples){
+    const p=predict(s.bits);
+    for(let c=0;c<3;c++){const t=c===s.cls?1:0; loss+=(p[c]-t)**2;}
+  }
+  return loss;
+}
+function train(n){
+  for(let e=0;e<n;e++){
+    const gW=Array.from({length:3},()=>Array(256).fill(0)), gB=[0,0,0];
+    for(const s of samples){
+      const p=predict(s.bits);
+      for(let c=0;c<3;c++){
+        const t=c===s.cls?1:0, g=2*(p[c]-t);
+        gB[c]+=g;
+        for(let i=0;i<256;i++) gW[c][i]+=g*s.bits[i];
+      }
+    }
+    for(let c=0;c<3;c++){
+      B[c]-=rate*gB[c];
+      for(let i=0;i<256;i++) W[c][i]-=rate*gW[c][i];
+    }
+    epoch++;
+  }
+  renderAll();
+}
+function renderScores(){
+  const p=predict(current), maxAbs=Math.max(1,...p.map(Math.abs));
+  document.getElementById("scores").innerHTML=p.map((v,c)=>{
+    const width=Math.min(100,Math.abs(v)/maxAbs*100);
+    return `<div class="barrow"><b>${LABELS[c]}</b><div class="barbg"><div class="bar" style="width:${width}%"></div></div><span>${v.toFixed(3)}</span></div>`;
+  }).join("");
+  const best=p.indexOf(Math.max(...p));
+  document.getElementById("answer").textContent=epoch?LABELS[best]:"未学習";
+}
+function renderWeights(){
+  const host=document.getElementById("weights"); host.innerHTML="";
+  const max=Math.max(.0001,...W.flat().map(Math.abs));
+  for(let c=0;c<3;c++){
+    const box=document.createElement("div");
+    box.innerHTML=`<b>${LABELS[c]} の重み</b>`;
+    const wg=document.createElement("div"); wg.className="wgrid";
+    W[c].forEach(v=>{
+      const d=document.createElement("div"); d.className="wcell";
+      const a=Math.min(1,Math.abs(v)/max);
+      d.style.background=v>=0?`rgba(0,0,0,${a})`:`rgba(160,160,160,${a})`;
+      wg.appendChild(d);
+    });
+    box.appendChild(wg); host.appendChild(box);
+  }
+}
+function renderResults(){
+  let rows="";
+  for(const s of samples){
+    const p=predict(s.bits), ans=p.indexOf(Math.max(...p)), ok=ans===s.cls;
+    rows+=`<tr><td>${s.name}</td><td>${LABELS[s.cls]}</td><td>${epoch?LABELS[ans]:"-"}</td><td>${epoch?(ok?"○":"×"):"-"}</td></tr>`;
+  }
+  document.getElementById("results").innerHTML=`<table><tr><th>データ</th><th>正解</th><th>判定</th><th>一致</th></tr>${rows}</table>`;
+}
+function renderAll(){
+  document.getElementById("epoch").textContent=epoch;
+  document.getElementById("loss").textContent=lossAll().toFixed(6);
+  renderScores(); renderWeights(); renderResults();
+}
+document.getElementById("load").onclick=loadSample;
+document.getElementById("clear").onclick=()=>{current=Array(256).fill(0);renderInput();renderScores();};
+document.getElementById("reset").onclick=resetModel;
+document.querySelectorAll("[data-step]").forEach(b=>b.onclick=()=>train(+b.dataset.step));
+current=[...samples[0].bits]; renderInput(); resetModel();
+</script>
+</body></html>

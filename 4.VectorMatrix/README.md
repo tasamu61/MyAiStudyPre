@@ -8,61 +8,42 @@
 
 [16×16 3パターン認識デモを実行](https://tasamu61.github.io/MyAiStudyPre/4.VectorMatrix/04-3VectorMatrixDemo.html)
 
-## 4-1．3種類のパターンを判定する
+## 4-1．まずブラウザで動きを見る
 
-クラス番号を次のようにする。
+最初に、16×16の `|`、`-`、`/` を3種類同時に学習するデモを動かしてみる。
 
-| クラス | パターン | 学習データ |
-|---:|:---:|---:|
-| 0 | `|` | 5件 |
-| 1 | `-` | 5件 |
-| 2 | `/` | 5件 |
+[16×16 3パターン認識デモを実行](https://tasamu61.github.io/MyAiStudyPre/4.VectorMatrix/04-3VectorMatrixDemo.html)
 
-実際の学習データの一例を表示すると次のようになる。
+デモでは、入力パターン、3クラスの判定値、epochとLoss、行列の形、学習した重み、15件の判定結果を同時に確認できる。16×16のマスをクリックして形を変え、判定値がどう変化するかも試すことができる。
 
-**`|`（0_01.txt）**
-```text
-                
-                
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-       ■        
-                
-                
-```
+学習する3種類の代表例は次のとおりである。
 
-**`-`（1_01.txt）**
-```text
+<table>
+<tr><th>| （0_01.txt）</th><th>- （1_01.txt）</th><th>/ （2_01.txt）</th></tr>
+<tr>
+<td><pre>                
+                
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■        
+       ■</pre></td>
+<td><pre>                
                 
                 
                 
                 
                 
                 
-                
-  ■■■■■■■■■■■■  
-                
-                
-                
-                
-                
-                
-                
-                
-```
-
-**`/`（2_01.txt）**
-```text
-                
+  ■■■■■■■■■■■■</pre></td>
+<td><pre>                
                 
              ■  
             ■   
@@ -75,10 +56,17 @@
      ■          
     ■           
    ■            
-  ■             
-                
-                
-```
+  ■</pre></td>
+</tr>
+</table>
+
+各種類について5件ずつ、合計15件の学習データを使用する。
+
+| クラス | パターン | 学習データ |
+|---:|:---:|---:|
+| 0 | `|` | 5件 |
+| 1 | `-` | 5件 |
+| 2 | `/` | 5件 |
 
 16×16の1件のデータは、左上から順に並べて256個の数値にする。
 
@@ -98,7 +86,7 @@
 
 ## 4-2．まずPythonの配列だけで処理する
 
-[04-1Primitive.ipynb](04-1Primitive.ipynb) はGoogle Colabで実行できるNotebookである。外部ファイルをアップロードしなくても試せるよう、15件の学習データをNotebook内に持たせている。
+[04-1Primitive.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/4.VectorMatrix/04-1Primitive.ipynb) はGoogle Colabで実行できるNotebookである。外部ファイルをアップロードしなくても試せるよう、15件の学習データをNotebook内に持たせている。
 
 予測値は概念的には次の処理を3クラス分行う。
 
@@ -142,7 +130,7 @@ Python版で `for` 文を使って1個ずつ行っていた掛け算と加算を
 
 ## 4-4．NumPyで行列として処理する
 
-[04-2NumPy.ipynb](04-2NumPy.ipynb) もGoogle Colabでそのまま実行できる。
+[04-2NumPy.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/4.VectorMatrix/04-2NumPy.ipynb) もGoogle Colabでそのまま実行できる。
 
 ```python
 X = np.array([td["bits"] for td in training_data])
@@ -190,19 +178,5 @@ bias -= rate * bias_gradient
 - 「行列積で前の行列の列数と後ろの行列の行数が一致する必要があるのはなぜ？」
 - 「NumPyの `@` と `np.dot` の違いは？」
 - 「ニューラルネットワークで行列演算がどのように使われる？」
-
-## 4-6．ブラウザで多角的に見る
-
-[04-3VectorMatrixDemo.html](04-3VectorMatrixDemo.html) では、同じ学習を複数の方向から確認できる。
-
-- 16×16の入力パターン
-- `|`、`-`、`/` の3クラスの判定値
-- epochとLossの変化
-- `X(15×256) @ W.T(256×3) → Prediction(15×3)` の形
-- 3クラスそれぞれが学習した256個の重みを16×16のヒートマップとして表示
-- 15件すべての正解／判定結果を一覧表示
-- マスをクリックして入力を変更し、判定値の変化を確認
-
-[16×16 3パターン認識デモを実行](https://tasamu61.github.io/MyAiStudyPre/4.VectorMatrix/04-3VectorMatrixDemo.html)
 
 [← トップページへ](../)
