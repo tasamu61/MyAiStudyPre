@@ -1,4 +1,3 @@
-
 public class Main06_1 {
 
     // 1件のデータ：名前 ＋ 任意個数の諸元
@@ -96,8 +95,33 @@ public class Main06_1 {
         }
 
         // ------------------------------------------------------------
+        // 標準化した諸元を表示
+        // ------------------------------------------------------------
+        System.out.println("\n標準化した諸元");
+        // Markdown表
+        System.out.print("| 名前 |");
+        for (String featureName : featureNames) {
+            System.out.print(" " + featureName + " |");
+        }
+        System.out.println();
+
+        System.out.print("| --- |");
+        for (int col = 0; col < cols; col++) {
+            System.out.print(" ---: |");
+        }
+        System.out.println();
+
+        for (int row = 0; row < rows; row++) {
+            System.out.print("| " + data[row].name() + " |");
+            for (int col = 0; col < cols; col++) {
+                System.out.printf(" %.4f |", z[row][col]);
+            }
+            System.out.println();
+        }
+
+        // ------------------------------------------------------------
         // 2. 共分散行列
-        //　各要素の諸元の関係を表す行列       
+        //　各要素の諸元の関係を表す行列
         // Python:
         // cov = np.cov(Z, rowvar=False, bias=True)
         //
@@ -116,7 +140,26 @@ public class Main06_1 {
         }
 
         System.out.println("共分散行列");
-        printMatrix(cov);
+        // Markdown表
+        System.out.print("|  |");
+        for (String featureName : featureNames) {
+            System.out.print(" " + featureName + " |");
+        }
+        System.out.println();
+
+        System.out.print("| --- |");
+        for (int col = 0; col < cols; col++) {
+            System.out.print(" ---: |");
+        }
+        System.out.println();
+
+        for (int i = 0; i < cols; i++) {
+            System.out.print("| " + featureNames[i] + " |");
+            for (int j = 0; j < cols; j++) {
+                System.out.printf(" %.4f |", cov[i][j]);
+            }
+            System.out.println();
+        }
 
         // ------------------------------------------------------------
         // 3. 第1主成分
@@ -130,9 +173,13 @@ public class Main06_1 {
         double[] pc1 = powerMethod(cov);
 
         System.out.println("\nPC1（X方向）の係数");
+        // Markdown表
+        System.out.println("| 諸元 | 係数 |");
+        System.out.println("| --- | ---: |");
+
         for (int i = 0; i < cols; i++) {
             System.out.printf(
-                    "%-12s %8.4f%n",
+                    "| %s | %.4f |%n",
                     featureNames[i],
                     pc1[i]
             );
@@ -163,10 +210,13 @@ public class Main06_1 {
         double[] pc2 = powerMethod(cov2);
 
         System.out.println("\nPC2（Y方向）の係数");
+        // Markdown表
+        System.out.println("| 諸元 | 係数 |");
+        System.out.println("| --- | ---: |");
 
         for (int i = 0; i < cols; i++) {
             System.out.printf(
-                    "%-12s %8.4f%n",
+                    "| %s | %.4f |%n",
                     featureNames[i],
                     pc2[i]
             );
@@ -194,10 +244,13 @@ public class Main06_1 {
         }
 
         System.out.println("\nPCA結果");
+        // Markdown表
+        System.out.println("| 名前 | PC1 | PC2 |");
+        System.out.println("| --- | ---: | ---: |");
 
         for (int row = 0; row < rows; row++) {
             System.out.printf(
-                    "%-10s PC1=%8.4f  PC2=%8.4f%n",
+                    "| %s | %.4f | %.4f |%n",
                     data[row].name(),
                     result[row][0],
                     result[row][1]
@@ -211,18 +264,23 @@ public class Main06_1 {
         // 元の諸元を表示
         // ------------------------------------------------------------
         System.out.println("\n諸元");
-
-        System.out.printf("%-12s", "名前");
+        // Markdown表
+        System.out.print("| 名前 |");
         for (String featureName : featureNames) {
-            System.out.printf("%12s", featureName);
+            System.out.print(" " + featureName + " |");
+        }
+        System.out.println();
+
+        System.out.print("| --- |");
+        for (int col = 0; col < cols; col++) {
+            System.out.print(" ---: |");
         }
         System.out.println();
 
         for (Data d : data) {
-            System.out.printf("%-12s", d.name());
-
+            System.out.print("| " + d.name() + " |");
             for (double value : d.values()) {
-                System.out.printf("%12.1f", value);
+                System.out.printf(" %.1f |", value);
             }
             System.out.println();
         }
