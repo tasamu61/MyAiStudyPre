@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PCA 2次元変換デモ</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1b2330;--muted:#5d6879;--line:#dde1e8;--acc:#1f6f8b;--pt:#b4232c;--grid:#e6e9ee;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1a2029;--fg:#e6eaf0;--muted:#98a2b3;--line:#2b3441;--acc:#6cc0dd;--pt:#ff8a8f;--grid:#252d38}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1a2029;--fg:#e6eaf0;--muted:#98a2b3;--line:#2b3441;--acc:#6cc0dd;--pt:#ff8a8f;--grid:#252d38}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 "Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:24px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 4px}
+.lead,.desc{color:var(--muted);margin:0 0 10px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+textarea{width:100%;box-sizing:border-box;height:170px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px}
+button{background:var(--acc);color:var(--bg);border:0;border-radius:6px;padding:8px 16px;font:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.err{color:var(--pt);margin:8px 0 0;min-height:1.4em}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:5px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font-size:12px}
+svg text.ar{fill:var(--acc);font-weight:600}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 8px}
+.tab{background:var(--card);color:var(--muted);border:1px solid var(--line);padding:5px 10px;font-size:13px}
+.tab[aria-pressed="true"]{color:var(--fg);border-color:var(--acc)}
+.tab[aria-current="step"]{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+button.sub{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:disabled{opacity:.4;cursor:default}
+label.chk{display:inline-flex;gap:6px;align-items:center;margin-right:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>PCA 2次元変換デモ</h1>
+<p class="lead">諸元を持つデータを、標準化 → 共分散行列 → 主成分 → 2次元座標の順に変換する。Java版と同じ手順である。</p>
+<p class="lead">下の入力欄を書き換えれば、任意のデータで試せる。1行目に「名前,諸元名1,諸元名2,…」、2行目以降に「名前,値1,値2,…」を、カンマまたはタブ区切りで貼り付ければよい。諸元は2列以上、データは2行以上あれば、列数・行数は自由である。</p>
+
+<section>
+<h2>データ入力</h2>
+<p class="desc">1行目に「名前,諸元1,諸元2,…」、2行目以降に各データ。カンマまたはタブ区切りで、諸元は2列以上、データは2行以上必要である。</p>
+<p class="desc">サンプルデータをワンクリックで試せる。諸元の数もデータの件数も異なる3種類を用意した。</p>
+<div class="ctl" id="samples">
+<button class="sub" data-s="car">クルマの諸元（3諸元・6件）</button>
+<button class="sub" data-s="phone">スマホの仕様（4諸元・8件）</button>
+<button class="sub" data-s="score">5教科の成績（5諸元・8件）</button>
+</div>
+<textarea id="src" spellcheck="false"></textarea>
+<p><label class="chk"><input type="checkbox" id="std" checked>標準化する（外すと中心化のみ）</label><button id="go">最初からやり直す</button></p>
+<p class="err" id="err" role="alert"></p>
+</section>
+
+<div id="out"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const f=(v,d=3)=>(Math.abs(v)<5e-4?0:v).toFixed(d);
+
+const SAMPLES={
+car:`名前,排気量(cc),価格(万円),乗員
+軽自動車,660,140,4
+コンパクト,1000,180,5
+ヴァン,2000,230,7
+セダン,2000,240,5
+スポーツカー,2500,300,2
+高級車,3000,400,5`,
+phone:`名前,価格(万円),重量(g),バッテリー(mAh),ストレージ(GB)
+エントリーA,3,165,5000,64
+エントリーB,4,170,5000,128
+ミドルA,6,180,4500,128
+ミドルB,7,190,4800,256
+ハイエンドA,12,200,4400,256
+ハイエンドB,15,210,4500,512
+プレミアムA,20,220,5000,512
+プレミアムB,25,230,5000,1024`,
+score:`名前,国語,数学,英語,理科,社会
+生徒A,85,55,80,50,78
+生徒B,60,92,58,88,55
+生徒C,90,50,85,48,82
+生徒D,58,95,55,90,52
+生徒E,75,75,72,70,70
+生徒F,65,85,62,80,60
+生徒G,88,52,82,49,80
+生徒H,55,90,52,92,50`
+};
+
+function parse(t){
+  const rows=t.trim().split(/\r?\n/).map(l=>l.split(/[,\t]/).map(s=>s.trim()));
+  const feats=rows[0].slice(1), m=feats.length;
+  const recs=rows.slice(1).filter(r=>r.length>1||r[0]).map((r,i)=>{
+    const v=r.slice(1).map(Number);
+    if(v.length!==m||v.some(isNaN)) throw new Error((i+2)+"行目「"+r[0]+"」の諸元が"+m+"個の数値になっていない。");
+    return {name:r[0],v};
+  });
+  if(m<2) throw new Error("諸元は2列以上必要である。");
+  if(recs.length<2) throw new Error("データは2行以上必要である。");
+  return {feats,recs};
+}
+
+// ヤコビ法：対称行列の固有値・固有ベクトル（列が固有ベクトル）
+function jacobi(M){
+  const n=M.length, A=M.map(r=>r.slice()), V=M.map((_,i)=>M.map((_,j)=>+(i===j)));
+  for(let sw=0;sw<100;sw++){
+    let off=0; for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(i!==j)off+=A[i][j]**2;
+    if(Math.sqrt(off)<1e-10)break;
+    for(let p=0;p<n-1;p++)for(let q=p+1;q<n;q++){
+      if(Math.abs(A[p][q])<1e-12)continue;
+      const th=0.5*Math.atan2(2*A[p][q],A[p][p]-A[q][q]),c=Math.cos(th),s=Math.sin(th);
+      for(let k=0;k<n;k++){const a=A[k][p],b=A[k][q];A[k][p]=c*a+s*b;A[k][q]=-s*a+c*b;}
+      for(let k=0;k<n;k++){const a=A[p][k],b=A[q][k];A[p][k]=c*a+s*b;A[q][k]=-s*a+c*b;}
+      for(let k=0;k<n;k++){const a=V[k][p],b=V[k][q];V[k][p]=c*a+s*b;V[k][q]=-s*a+c*b;}
+    }
+  }
+  return {vals:A.map((r,i)=>r[i]),vecs:V};
+}
+
+function tbl(head,rows){
+  return '<div class="scroll"><table><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+function step(title,desc,body){return '<section><h2>'+title+'</h2><p class="desc">'+desc+'</p>'+body+'</section>';}
+
+function chart(names,P,feats,LD){
+  const W=640,H=420,L=40,R=90,T=16,B=32;
+  const K=Math.max(...P.map(p=>Math.max(Math.abs(p[0]),Math.abs(p[1]))))*0.9, AR=LD.map(l=>[l[0]*K,l[1]*K]);
+  const xs=P.map(p=>p[0]).concat(AR.map(a=>a[0]),[0]),ys=P.map(p=>p[1]).concat(AR.map(a=>a[1]),[0]);
+  const pad=(a,b)=>{const d=(b-a)*0.15||1;return[a-d,b+d];};
+  const [x0,x1]=pad(Math.min(...xs),Math.max(...xs)),[y0,y1]=pad(Math.min(...ys),Math.max(...ys));
+  const X=v=>L+(v-x0)/(x1-x0)*(W-L-R), Y=v=>H-B-(v-y0)/(y1-y0)*(H-T-B);
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="PC1とPC2の散布図">';
+  s+='<rect x="'+L+'" y="'+T+'" width="'+(W-L-R)+'" height="'+(H-T-B)+'" fill="none" stroke="var(--grid)"/>';
+  if(x0<0&&x1>0)s+='<line x1="'+X(0)+'" x2="'+X(0)+'" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--line)"/>';
+  if(y0<0&&y1>0)s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(0)+'" y2="'+Y(0)+'" stroke="var(--line)"/>';
+  s+='<text x="'+(W-R)+'" y="'+(H-10)+'" text-anchor="end">PC1</text><text x="6" y="'+(T+10)+'">PC2</text>';
+  s+='<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--acc)"/></marker></defs>';
+  AR.forEach((a,i)=>{s+='<line x1="'+X(0)+'" y1="'+Y(0)+'" x2="'+X(a[0])+'" y2="'+Y(a[1])+'" stroke="var(--acc)" stroke-width="1.5" marker-end="url(#ah)"/><text class="ar" x="'+(X(a[0])+5)+'" y="'+(Y(a[1])-5)+'">'+esc(feats[i])+'</text>';});
+  P.forEach((p,i)=>{s+='<circle cx="'+X(p[0])+'" cy="'+Y(p[1])+'" r="5" fill="var(--pt)"/><text x="'+(X(p[0])+8)+'" y="'+(Y(p[1])+4)+'">'+esc(names[i])+'</text>';});
+  return s+'</svg>';
+}
+
+function run(){
+  const err=$('err'),out=$('out'); err.textContent='';
+  try{
+    const {feats,recs}=parse($('src').value), n=recs.length, m=feats.length;
+    const useStd=$('std').checked;
+    const names=recs.map(r=>r.name), data=recs.map(r=>r.v);
+    let h='';
+    h+=step('Step0：各諸元','入力された元データである。単位も桁もそろっていない。',
+      tbl(['名前',...feats],data.map((r,i)=>[names[i],...r.map(v=>f(v,2))])));
+
+    const mean=feats.map((_,j)=>data.reduce((s,r)=>s+r[j],0)/n);
+    const std=feats.map((_,j)=>Math.sqrt(data.reduce((s,r)=>s+(r[j]-mean[j])**2,0)/n));
+    if(useStd&&std.some(s=>s===0)) throw new Error("すべて同じ値の諸元があるため標準化できない。");
+    const z=data.map(r=>r.map((v,j)=>(v-mean[j])/(useStd?std[j]:1)));
+    h+=step(useStd?'Step1：標準化':'Step1：中心化のみ（標準化オフ）',useStd?'各諸元を「平均からの離れ具合（標準偏差いくつ分）」に直し、同じ尺度で比べられるようにする。':'平均を引くだけで、桁の違いはそのまま残す。排気量のような桁の大きい諸元が結果を支配する様子を確認できる。',
+      tbl(['諸元','平均','標準偏差'],feats.map((x,j)=>[x,f(mean[j],2),f(std[j],2)]))+'<p class="note">'+(useStd?'標準化後のデータ':'中心化後のデータ')+'</p>'+
+      tbl(['名前',...feats],z.map((r,i)=>[names[i],...r.map(v=>f(v))])));
+
+    const cov=feats.map((_,a)=>feats.map((_,b)=>z.reduce((s,r)=>s+r[a]*r[b],0)/n));
+    h+=step('Step2：共分散行列','諸元どうしが同じ向きに動くほど正の大きな数、逆向きに動くほど負の大きな数になる。'+(useStd?'標準化済みなので相関係数と一致する。':'標準化していないため、桁の大きい諸元の値が突出する。'),
+      tbl(['',...feats],cov.map((r,i)=>[feats[i],...r.map(v=>f(v,useStd?3:1))])));
+
+    const {vals,vecs}=jacobi(cov);
+    const ord=vals.map((_,i)=>i).sort((a,b)=>vals[b]-vals[a]);
+    const tot=vals.reduce((s,v)=>s+v,0);
+    const comp=(k,label,desc)=>{const i=ord[k];
+      return step(label,desc+' 固有値 '+f(vals[i])+'、寄与率 '+f(vals[i]/tot*100,1)+'%。',
+        tbl(['諸元','係数'],feats.map((x,a)=>[x,f(vecs[a][i])])));};
+    h+=comp(0,'Step3：第1主成分の係数','データが最も大きく散らばる方向である。係数の絶対値が大きい諸元ほど、この軸を決めている。');
+    h+=comp(1,'Step4：第2主成分の係数','第1主成分と直交し、次に大きく散らばる方向である。');
+
+    const P=z.map(r=>[0,1].map(k=>r.reduce((s,v,a)=>s+v*vecs[a][ord[k]],0)));
+    h+=step('Step5：各データをPC1・PC2へ変換','標準化データに係数を掛けて足し合わせ、諸元の数によらず2つの値にまとめる。これが次元削減である。',
+      tbl(['名前','PC1','PC2'],P.map((p,i)=>[names[i],f(p[0]),f(p[1])])));
+
+    const cum=(vals[ord[0]]+vals[ord[1]])/tot*100;
+    h+=step('参考：寄与率','2次元に減らしても元の情報のどれだけを保てているかを示す。','<p><strong>累積寄与率 '+f(cum,1)+'%</strong></p>');
+    h+=step('FINAL：グラフ','PC1を横軸、PC2を縦軸にした散布図である。青い矢印は各諸元の向きで、同じ向きの諸元は連動し、直角の諸元は無関係に近い。矢印の方向に寄った点ほど、その諸元の値が大きい。',chart(names,P,feats,feats.map((_,a)=>[vecs[a][ord[0]],vecs[a][ord[1]]])));
+    steps=h.split('<section>').filter(Boolean).map(x=>'<section>'+x); shown=1; render();
+  }catch(e){err.textContent=e.message;out.innerHTML='';}
+}
+let steps=[],shown=1;
+function render(){
+  const T=steps.map(s=>s.match(/<h2>(.*?)<\/h2>/)[1]);
+  const tabs=T.map((t,i)=>'<button class="tab" data-i="'+i+'" aria-pressed="'+(i<shown)+'"'+(i===shown-1?' aria-current="step"':'')+'>'+t+'</button>').join('');
+  const ctl='<div class="ctl" id="ctl"><button class="sub" data-a="prev"'+(shown<=1?' disabled':'')+'>1つ戻る</button><button data-a="next"'+(shown>=steps.length?' disabled':'')+'>次のステップへ</button><button class="sub" data-a="all">全部表示</button></div>';
+  const before=steps.slice(0,shown-1).join(''), last=steps[shown-1]||'';
+  // ctl（操作ボタン）は常に「直近で追加された要素」の直前に置き、追加のたびに一緒に下へ移動させる
+  $('out').innerHTML='<div class="nav">'+tabs+'</div>'+before+ctl+last;
+  $('ctl').scrollIntoView({block:'start',behavior:'smooth'});
+}
+$('out').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b||b.disabled)return;
+  if(b.dataset.i!==undefined)shown=+b.dataset.i+1;
+  else if(b.dataset.a==='next')shown=Math.min(shown+1,steps.length);
+  else if(b.dataset.a==='prev')shown=Math.max(shown-1,1);
+  else if(b.dataset.a==='all')shown=steps.length;
+  render();
+});
+$('go').addEventListener('click',run);
+$('std').addEventListener('change',run);
+$('samples').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  $('src').value=SAMPLES[b.dataset.s];
+  run();
+});
+$('src').value=SAMPLES.car;
+run();
+</script>
+</body>
+</html>
