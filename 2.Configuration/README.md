@@ -72,6 +72,10 @@ epoch（回数）	100
 - [02-3ml_learning_demo.html](https://tasamu61.github.io/MyAiStudyPre/2.Configuration/02-3ml_learning_demo.html)
 - [02-4Mlearn.html](https://tasamu61.github.io/MyAiStudyPre/2.Configuration/02-4Mlearn.html)
 - [02-5RegressionLab.html](https://tasamu61.github.io/MyAiStudyPre/2.Configuration/02-5RegressionLab.html)
+このように多くのデモプログラムがある理由、誰が作ったかを考えると昨今のAI事情が見えてくる場合もある。  
+
+[デモ](02_1Demo.md)
 
 02-5RegressionLab.htmlは、モデル、損失関数、初期値、学習率、epochなどをまとめて変更できる総合的なデモである。
 02-1Loss_explorer.htmlと扱う内容に重なる部分が多いため、本章では主サンプルではなく参考として位置づけている。
+[← トップページへ](../)
