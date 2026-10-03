@@ -1,18 +1,18 @@
-# ５．文字、Token処理
+# ６．文字、Token処理
 
 これまでは数値や16×16のドットを入力として扱った。本章では機械学習を文字、文章へと発展させる足がかりとして、**「文章が旅行に関するものか否か」**を判定する。
 
 ただし、ここで作るものは実用的な文章理解には程遠い。あえて単純な方法を使い、文字やTokenを扱えるようにしただけでは文章の意味を理解できないことを確認する。
 
-## 5.1 まずブラウザで試す
+## 6.1 まずブラウザで試す
 
 旅行5件、旅行以外5件、合計10件を学習し、**文字単位**と**Token単位**の判定を比較する。HTML版のToken分割は説明用の簡易処理であり、実際の形態素解析は後述のColab版でJanomeを使用する。
 
-[文字・Token分類デモを実行](https://tasamu61.github.io/MyAiStudyPre/5.Text/05-3CharacterTokenDemo.html)
+[文字・Token分類デモを実行](https://tasamu61.github.io/MyAiStudyPre/6.Text/06-3CharacterTokenDemo.html)
 
 用意した3件の推論サンプルのほか、自由な文章を入力して両方式の判定を比較できる。
 
-## 5.2 学習データ
+## 6.2 学習データ
 
 |No.|文章|分類|
 |---:|---|---|
@@ -27,7 +27,7 @@
 |9|野球の試合結果をニュースで確認した|旅行以外|
 |10|新しいパソコンのメモリを増設したい|旅行以外|
 
-## 5.3 文字単位で処理する
+## 6.3 文字単位で処理する
 
 文章を1文字ずつ分解する。
 
@@ -39,11 +39,11 @@
 
 旅行／旅行以外で各文字が何回現れたかを学習し、入力文の文字から判定する。文字処理には外部ライブラリを使わずPythonだけで実装する。
 
-[05-1Character.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.Text/05-1Character.ipynb)
+[06-1Character.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/6.Text/06-1Character.ipynb)
 
 文字だけでは「京都」を `京` と `都` に分けて見ることになり、単語の意味や文章の文脈は分からない。
 
-## 5.4 Token単位で処理する
+## 6.4 Token単位で処理する
 
 次は文章をTokenに分割する。
 
@@ -55,11 +55,11 @@
 
 Colab版では日本語形態素解析ライブラリ `Janome` を利用する。
 
-[05-2Token.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.Text/05-2Token.ipynb)
+[06-2Token.ipynb をGoogle Colabで開く](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/6.Text/06-2Token.ipynb)
 
 Tokenにすれば文字よりまとまった単位を扱えるが、このモデルも基本的には**どのTokenが何回現れたか**を見ているだけである。
 
-## 5.5 3件を推論する
+## 6.5 3件を推論する
 
 |文章|ポイント|
 |---|---|
@@ -69,7 +69,7 @@ Tokenにすれば文字よりまとまった単位を扱えるが、このモデ
 
 学習データに似た文字やTokenがあればある程度判定できる。しかし、2番目や3番目のような文章では、単純な出現回数だけでは意味を判断しにくい。
 
-## 5.6 実用には程遠い
+## 6.6 実用には程遠い
 
 文字単位からToken単位へ進むことで、文章の構造に一歩近づく。しかし、まだ**意味、文脈、語順、Token同士の関係**を十分に扱っていない。
 

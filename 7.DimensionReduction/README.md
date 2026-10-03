@@ -1,8 +1,8 @@
-# ６．次元削減（PCA） ― 5つの諸元を2つの軸に落とす
+# ７．次元削減（PCA） ― 5つの諸元を2つの軸に落とす
 
 機械学習を実用的に動かすテクニックのひとつとして次元削減があり、その実現にはいくつかの手法があるが、ここでは代表的なひとつであるPCAをもちいて、実際にもよくありそうな自動車の諸元の次元削減を例に説明する。
 
-## 6.1 次元削減とは
+## 7.1 次元削減とは
 
 次元削減の役割は大きく2つある。
 
@@ -24,7 +24,7 @@ PCAのような手法を用いて有効なデータになるように軽量化�
 > 1ピクセル＝1次元とみなすと1万次元のデータになる。しかし、有用な情報はその一部に過ぎず、
 > 圧縮することによって実用に耐える処理時間・精度が得られるようなアプローチが使われたこともある。
 
-## 6.2 諸元からPC1〜5を導く過程
+## 7.2 諸元からPC1〜5を導く過程
 
 以下の①〜⑤の番号は、サンプルプログラム（HTMLデモ・ノートブック）のコード中のコメントとも対応させている。
 
@@ -66,20 +66,20 @@ PCによる次元削減の流れは以下となる。
 
 
 
-## 6.4 サンプルプログラム
+## 7.4 サンプルプログラム
 
 3つの見せ方を用意した。いずれも同じデータ・同じ①〜⑤の手順を使っており、
 ③の固有値・固有ベクトルの計算方法（ライブラリを使うか、自分で書くか）だけが異なる。
 
-- **[HTMLデモ](https://tasamu61.github.io/MyAiStudyPre/6.DimensionReduction/06-1Reduce.html)**：
+- **[HTMLデモ](https://tasamu61.github.io/MyAiStudyPre/7.DimensionReduction/07-1Reduce.html)**：
   車のデータを編集しながら、「生データの2変数散布図」と「PCAバイプロット（PC1×PC2）」を見比べられる。
   各点には車名のラベルが付いている。③の固有値計算は自作の古典的Jacobi法（対称行列を、非対角成分が
   大きい場所から順に回転させて消していく反復計算）で行っている。
-- **[06-2pca_numpy.ipynb（ライブラリあり版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/6.DimensionReduction/06-2pca_numpy.ipynb)**：
+- **[07-2pca_numpy.ipynb（ライブラリあり版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/7.DimensionReduction/07-2pca_numpy.ipynb)**：
   ③の固有値計算に`np.linalg.eigh`を使う、実務ではこう書くという到達点。最後に、圧縮前の元データ
   （5諸元×5台の一覧）もあらためて表示し、比較できるようにしている。
-- **[06-3pca_scratch.ipynb（ライブラリなし版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/6.DimensionReduction/06-3pca_scratch.ipynb)**：
-  `eigh`の中身をブラックボックスのままにせず、06-1Reduce.htmlと同じJacobi法をPythonで書き下したもの。
+- **[07-3pca_scratch.ipynb（ライブラリなし版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/7.DimensionReduction/07-3pca_scratch.ipynb)**：
+  `eigh`の中身をブラックボックスのままにせず、07-1Reduce.htmlと同じJacobi法をPythonで書き下したもの。
   06-2と最後のscores（各車のPC1・PC2上の座標）がほぼ一致することを、ノートブック内で確認できる。
   こちらも末尾に元データの一覧を表示する。
 

@@ -1,4 +1,4 @@
-# 4.業連演算、Python演算子オーバーロード、NumPyで行列演算を簡易に実現する仕組み
+# 4.業連演算、Python演算子オーバーロード、NumPyで行列演算を簡易に実現する仕組み  
 
 　機械学習では必須とおもわれるNumPyであるが、　　
 　`prediction = X @ weights.T + bias`   

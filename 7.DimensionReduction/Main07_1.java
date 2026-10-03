@@ -1,4 +1,4 @@
-public class Main06_1 {
+public class Main07_1 {
 
     // 1件のデータ：名前 ＋ 任意個数の諸元
     record Data(String name, double[] values) {
@@ -23,7 +23,7 @@ public class Main06_1 {
             new Data("高級車", new double[]{3000, 400, 5})
         };
 
-        Main06_1 main = new Main06_1();
+        Main07_1 main = new Main07_1();
         main.doMain(featureNames, data);
     }
 

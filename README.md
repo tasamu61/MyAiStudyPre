@@ -5,7 +5,7 @@
 ・htmlのリンクは以下形式、説明をつけるか否かは文脈により決める。
 [03-116x16Dots.html](https://tasamu61.github.io/MyAiStudyPre/3.16x16Dots/03-116x16Dots.html)
 ・python colabのリンクは以下、、説明をつけるか否かは文脈により決める。
-- **[06-3pca_scratch.ipynb（ライブラリなし版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/6.DimensionReduction/06-3pca_scratch.ipynb)**：
+- **[07-3pca_scratch.ipynb（ライブラリなし版）](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/7.DimensionReduction/07-3pca_scratch.ipynb)**：
 -->
 # プログラマのための機械学習、AIシステムへのいざない
 
@@ -29,15 +29,15 @@
 [４．行列、Python演算子オーバーロード、NumPy](4.ArrayPythonNumPy)
  　機械学習のプログラミングで多用されるNumPyについて、行列演算、Pythonでの実現法を含め解説する。
 
-[４．ベクトル・行列](4.VectorMatrix)  
+[５．ベクトル・行列](5.VectorMatrix)  
 　　３．の内容を３つのパターンへと機能拡張している。また素の言語機能での実装とNumpy, Torchなど、機械学習上必須となってくるライブラリを使用したコードでの実装の二つをおこないベクトル・行列化の例を説明している。
 
-[５．文字、Token処理](5.Text)  
+[６．文字、Token処理](6.Text)  
 　機械学習を文字、文章へと発展させる足がかりとして文字、トークン認識についてコードを用いて説明。実用には程遠いことを実感するものである。
 
-[６．次元削減](6.DimensionalityReduction)
+[７．次元削減](7.DimensionReduction)
 　機械学習を構成する機能のひとつ、次元削減について簡単に説明し、その実例をコード、デモを用いて解説。
 
-[７．ニューラルネットワーク]()
+[８．ニューラルネットワーク]()
 　予定してるだけ、中身はこれから
 　  

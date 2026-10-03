@@ -1,4 +1,4 @@
-public class Main06_2 extends Main06_1  {
+public class Main07_2 extends Main07_1  {
 
 
 
@@ -28,7 +28,7 @@ public class Main06_2 extends Main06_1  {
     public static void main(String[] args) {
 
 
-        Main06_2 main = new Main06_2();
+        Main07_2 main = new Main07_2();
         main.doMain(main.featureNames, main.data);
     }   
 

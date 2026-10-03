@@ -1,9 +1,9 @@
-# ４．ベクトル・行列
+# ５．ベクトル・行列
 
 3章では「16×16ドットが数字の1か、そうでないか」の2クラス判定を、素の言語機能（for文だけ）で実装した。
 本章では、これを「|（縦棒）」「-（横棒）」「/（斜め線）」の3クラス判定に拡張し、あわせて同じ処理をnumpyの行列演算で書いた場合との対比を通じて、機械学習でベクトル・行列の必要性について示す。
 
-## 4.1 機械学習における行列の必要性
+## 5.1 機械学習における行列の必要性
 
 3章のモデルは、256個の入力に対して256個の重み＋バイアス1個、出力は「1である確率」ひとつだった。
 今回は3クラス（|, -, /）を判定するため、出力も3つ必要になる。愚直に考えると、クラスごとに
@@ -23,7 +23,7 @@
 機械学習で行列が多用される理由である。データ件数やクラス数、パラメータ数が増えるほど、この
 まとめ方の恩恵（計算のシンプルさ、そして後述するnumpyのような処理速度）は大きくなる。
 
-## 4.2 サンプルデータ
+## 5.2 サンプルデータ
 
 学習データは「|」「-」「/」それぞれ5件、あわせて15件。ファイル名の先頭の数字が正解クラスを表す
 （0="|"、1="-"、2="/"）。例えばこのような形である。
@@ -38,16 +38,16 @@
        ■                                             ■
 ```
 
-## 4.3 サンプルプログラム（素の言語機能／numpy）
+## 5.3 サンプルプログラム（素の言語機能／numpy）
 
 3章と同じく、①予測→②Loss→③微分→④⑤補正、という手順で学習する。今回はLoss関数を
 シグモイド無しの単純な2乗誤差 `Loss = Σ(prediction - target)²` にし、正解クラスの位置だけ1.0、
 それ以外は0.0にした3つの数値（one-hot）を教師データとして使う。判定は、3クラス分の予測値のうち
 一番大きいもの（argmax）を採用する。
 
-- [04-2Train3.py](04-2Train3.py) / [04-2Train3.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/4.VectorMatrix/04-2Train3.ipynb)：
+- [05-2Train3.py](05-2Train3.py) / [05-2Train3.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.VectorMatrix/05-2Train3.ipynb)：
   素の言語機能（for文だけ）で書いた版
-- [04-3numpy3.py](04-3numpy3.py) / [04-3numpy3.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/4.VectorMatrix/04-3numpy3.ipynb)：
+- [05-3numpy3.py](05-3numpy3.py) / [05-3numpy3.ipynb](https://colab.research.google.com/github/tasamu61/MyAiStudyPre/blob/main/5.VectorMatrix/05-3numpy3.ipynb)：
   numpyの行列演算（`@`）で書いた版
 
 両者は数学的にまったく同じ計算をしており、実際に実行すると同じLossの推移・同じ判定結果になる
@@ -147,9 +147,9 @@ bias_gradient = np.sum(gradient, axis=0)
 素の言語機能版を読めば、numpyの`@`が中でどんな計算をしているかが分かり、numpy版を読めば、
 実務ではこの計算をどれだけ簡潔に書けるかが分かる。
 
-## 4.4 JavaScriptデモ
+## 5.4 JavaScriptデモ
 
-[04-1VectorMatrix.html](https://tasamu61.github.io/MyAiStudyPre/4.VectorMatrix/04-1VectorMatrix.html)
+[05-1VectorMatrix.html](https://tasamu61.github.io/MyAiStudyPre/5.VectorMatrix/05-1VectorMatrix.html)
 
 以下を確認できる。
 
@@ -159,7 +159,7 @@ bias_gradient = np.sum(gradient, axis=0)
 - 評価データ（学習には使っていない6件）の判定結果。うち3件は学習データとよく似た位置の「|」「-」「/」（正しく判定できる）、残り3件は学習データにない離れた位置の図形（判定を誤る）。3章と同様、この単純な線形モデルには位置の違いを吸収する仕組みがないことが、この対比からも確認できる
 - 自分でマスをクリックして図形を描き、3クラス分のスコアをその場で確認できる
 
-## 4.5 参考データ
+## 5.5 参考データ
 
 [data3](data3)：学習・評価に使った16×16ドットのテキストファイル一式（15件）。
 [← トップページへ](../)
