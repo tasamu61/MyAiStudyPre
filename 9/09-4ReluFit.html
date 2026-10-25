@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ReLUで y = x² に近づける</title>
+<style>
+:root{--bg:#f3f5f8;--panel:#fff;--ink:#1b2430;--sub:#5d6b7c;--line:#d5dce5;--target:#1b2430;--net:#4b3fd6;--neu:#0f9d8a;--zone:#e6eaf2;--btn:#4b3fd6;--btnink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151d;--panel:#181f2a;--ink:#e8edf4;--sub:#93a1b3;--line:#2c3746;--target:#e8edf4;--net:#9d93ff;--neu:#3ed1bb;--zone:#1d2633;--btn:#9d93ff;--btnink:#10151d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151d;--panel:#181f2a;--ink:#e8edf4;--sub:#93a1b3;--line:#2c3746;--target:#e8edf4;--net:#9d93ff;--neu:#3ed1bb;--zone:#1d2633;--btn:#9d93ff;--btnink:#10151d;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;line-height:1.6}
+main{max-width:860px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
+p.lead{margin:0 0 14px;color:var(--sub);font-size:.92rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+canvas{display:block;width:100%}
+#main{height:min(60vw,420px);min-height:260px}
+#hist{height:70px;margin-top:8px}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:10px 2px;font-size:.9rem;font-variant-numeric:tabular-nums}
+.stats b{font-size:1.05rem}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 20px;margin-top:12px}
+label{display:block;font-size:.85rem;color:var(--sub)}
+label span{color:var(--ink);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--net)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{font:inherit;font-size:.9rem;padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.primary{background:var(--btn);color:var(--btnink);border-color:var(--btn);font-weight:600}
+button:focus-visible,input:focus-visible{outline:2px solid var(--net);outline-offset:2px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--sub);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.eq{margin:10px 2px 0;font-size:.85rem;line-height:1.9;font-variant-numeric:tabular-nums;word-break:break-word}
+.eq .f{color:var(--sub)}
+.tblw{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;font-size:.82rem;font-variant-numeric:tabular-nums;min-width:100%}
+th,td{padding:3px 10px;text-align:right;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:500}
+td:first-child,th:first-child{text-align:center}
+.note{margin-top:14px;font-size:.88rem;color:var(--sub)}
+.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+<main>
+<h1>ReLUの折れ線が y = x² に変形していく様子</h1>
+<p class="lead">隠れ層のニューロン1個が折れ線の「関節」1個です。学習を始めると、関節が動き、傾きが変わり、放物線に近づきます。</p>
+
+<div class="card">
+  <canvas id="main" aria-label="学習の様子"></canvas>
+  <div class="legend">
+    <span><i style="border-color:var(--target);border-top-style:dotted"></i>正解 y = x²（点が学習データ）</span>
+    <span><i style="border-color:var(--net)"></i>ネットワークの出力</span>
+    <span><i style="border-color:var(--neu)"></i>各ニューロンの寄与 vᵢ·ReLU(wᵢx+bᵢ)</span>
+  </div>
+  <div class="stats">
+    <div>ステップ <b id="st">0</b></div>
+    <div>誤差(MSE) <b id="ls">-</b></div>
+    <div>関節の数 <b id="jn">-</b></div>
+  </div>
+  <canvas id="hist" aria-label="誤差の推移"></canvas>
+  <div class="eq" id="eq"></div>
+  <div class="tblw" id="tbl"></div>
+</div>
+
+<div class="card" style="margin-top:12px">
+  <div class="btns">
+    <button class="primary" id="run">学習を開始</button>
+    <button id="one">1ステップ進める</button>
+    <button id="reset">初期化</button>
+  </div>
+  <div class="ctl">
+    <label>ニューロン数 <span id="hv">4</span>
+      <input type="range" id="h" min="1" max="16" value="4"></label>
+    <label>学習率 <span id="lv">0.02</span>
+      <input type="range" id="lr" min="-3" max="-1" step="0.05" value="-1.7"></label>
+    <label>速度（1フレームあたりのステップ数） <span id="sv">5</span>
+      <input type="range" id="sp" min="1" max="40" value="5"></label>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:20px"><input type="checkbox" id="parts" checked> 各ニューロンの寄与を表示</label>
+  </div>
+</div>
+
+<div class="note">
+  <p><b>見どころ</b></p>
+  <p>・ニューロン数 1〜2 では折れ線が粗く、誤差が下がりきりません。増やすと細かく追従します。<br>
+  ・青紫の線の折れ目が、緑の線の折れ目（x軸上の ▲ が関節の位置）と重なっていることを確認してください。<br>
+  ・灰色の帯の外（学習範囲 −2〜2 の外側）は直線的に伸びるだけで、x² から外れます。ニューラルネットワークは学習範囲の外が苦手です。<br>
+  ・稀に、傾きが0のまま動かないニューロン（死んだReLU）が出ます。初期化を押し直すと変わります。</p>
+</div>
+</main>
+
+<script>
+(function(){
+const XMIN=-3,XMAX=3,YMIN=-1.5,YMAX=9.5,TR=2;
+const data=[];for(let i=0;i<41;i++){const x=-TR+i*(2*TR/40);data.push([x,x*x]);}
+let H=4,P,M,V,t=0,hist=[],running=false;
+const $=id=>document.getElementById(id);
+const cv=$('main'),cx=cv.getContext('2d'),hc=$('hist'),hx=hc.getContext('2d');
+// params layout: w[0..H), b[H..2H), v[2H..3H), c[3H]
+function init(){
+  H=+$('h').value;P=new Float64Array(3*H+1);M=new Float64Array(P.length);V=new Float64Array(P.length);
+  for(let i=0;i<H;i++){
+    const s=Math.random()<.5?-1:1;P[i]=s*(.4+Math.random()*.8);
+    const knot=-TR+(i+.5)*(2*TR/H)+(Math.random()-.5)*.3; // 関節をおおまかに散らす
+    P[H+i]=-P[i]*knot;P[2*H+i]=(Math.random()-.5)*.6;
+  }
+  P[3*H]=0;t=0;hist=[];update();draw();
+}
+function fwd(x,out){let y=P[3*H];for(let i=0;i<H;i++){const a=Math.max(0,P[i]*x+P[H+i]);if(out)out[i]=P[2*H+i]*a;y+=P[2*H+i]*a;}return y;}
+function step(lr){
+  const g=new Float64Array(P.length),N=data.length;let loss=0;
+  for(const [x,tg] of data){
+    let y=P[3*H];const z=[];
+    for(let i=0;i<H;i++){const zi=P[i]*x+P[H+i];z[i]=zi;if(zi>0)y+=P[2*H+i]*zi;}
+    const e=y-tg;loss+=e*e;const dy=2*e/N;g[3*H]+=dy;
+    for(let i=0;i<H;i++){const zi=z[i];if(zi>0){g[2*H+i]+=dy*zi;const da=dy*P[2*H+i];g[i]+=da*x;g[H+i]+=da;}}
+  }
+  t++;const b1=.9,b2=.999;
+  for(let k=0;k<P.length;k++){
+    M[k]=b1*M[k]+(1-b1)*g[k];V[k]=b2*V[k]+(1-b2)*g[k]*g[k];
+    P[k]-=lr*(M[k]/(1-Math.pow(b1,t)))/(Math.sqrt(V[k]/(1-Math.pow(b2,t)))+1e-8);
+  }
+  hist.push(loss/N);if(hist.length>600)hist.shift();
+}
+function lr(){return Math.pow(10,+$('lr').value);}
+function update(){
+  $('hv').textContent=H;$('lv').textContent=lr().toFixed(3);$('sv').textContent=$('sp').value;
+  $('st').textContent=t;$('ls').textContent=hist.length?hist[hist.length-1].toFixed(4):'-';
+  let j=0;for(let i=0;i<H;i++){const k=-P[H+i]/P[i];if(P[i]!==0&&k>XMIN&&k<XMAX&&P[2*H+i]!==0)j++;}
+  $('jn').textContent=j+' / '+H;renderEq();
+}
+function sg(n){return (n<0?'−':'+')+' '+Math.abs(n).toFixed(2);}
+function renderEq(){
+  let s='<span class="f">一般式：</span> y = c + Σ vᵢ·ReLU(wᵢ·x + bᵢ)<br><span class="f">いまの式：</span> y = '+P[3*H].toFixed(2);
+  let rows='';
+  for(let i=0;i<H;i++){
+    const w=P[i],b=P[H+i],v=P[2*H+i];
+    s+=' '+sg(v).replace(/^([+−]) /,'$1 ')+'·ReLU('+w.toFixed(2)+'x '+sg(b)+')';
+    const k=-b/w;
+    rows+='<tr><td>'+(i+1)+'</td><td>'+w.toFixed(3)+'</td><td>'+b.toFixed(3)+'</td><td>'+v.toFixed(3)+'</td><td>'+(isFinite(k)?k.toFixed(2):'-')+'</td></tr>';
+  }
+  $('eq').innerHTML=s;
+  $('tbl').innerHTML='<table><thead><tr><th>ニューロン</th><th>w（傾き）</th><th>b（ずらし）</th><th>v（倍率）</th><th>折れ目 x=−b/w</th></tr></thead><tbody>'+rows+'<tr><td>c</td><td colspan="4" style="text-align:left">'+P[3*H].toFixed(3)+'（全体の上下位置）</td></tr></tbody></table>';
+}
+function fit(c,ctx){const r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;c.width=r.width*d;c.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);return [r.width,r.height];}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function draw(){
+  const [w,h]=fit(cv,cx),pl=34,pb=22,pt=8,pr=8;
+  const X=x=>pl+(x-XMIN)/(XMAX-XMIN)*(w-pl-pr),Y=y=>h-pb-(y-YMIN)/(YMAX-YMIN)*(h-pb-pt);
+  cx.clearRect(0,0,w,h);
+  cx.fillStyle=css('--zone');cx.fillRect(X(-TR),pt,X(TR)-X(-TR),h-pb-pt);
+  cx.strokeStyle=css('--line');cx.fillStyle=css('--sub');cx.font='11px system-ui';cx.lineWidth=1;
+  cx.textAlign='right';for(let y=0;y<=9;y+=3){cx.beginPath();cx.moveTo(pl,Y(y));cx.lineTo(w-pr,Y(y));cx.stroke();cx.fillText(y,pl-5,Y(y)+4);}
+  cx.textAlign='center';for(let x=-3;x<=3;x++){cx.fillText(x,X(x),h-6);}
+  cx.beginPath();cx.moveTo(X(0),pt);cx.lineTo(X(0),h-pb);cx.stroke();
+  cx.save();cx.beginPath();cx.rect(pl,pt,w-pl-pr,h-pb-pt);cx.clip();
+  const N=240,xs=[];for(let i=0;i<=N;i++)xs.push(XMIN+i*(XMAX-XMIN)/N);
+  if($('parts').checked){
+    cx.strokeStyle=css('--neu');cx.globalAlpha=.45;cx.lineWidth=1.4;
+    for(let i=0;i<H;i++){cx.beginPath();xs.forEach((x,k)=>{const y=P[2*H+i]*Math.max(0,P[i]*x+P[H+i]);k?cx.lineTo(X(x),Y(y)):cx.moveTo(X(x),Y(y));});cx.stroke();}
+    cx.globalAlpha=1;
+  }
+  cx.strokeStyle=css('--target');cx.setLineDash([2,4]);cx.lineWidth=1.4;cx.beginPath();
+  xs.forEach((x,k)=>{if(Math.abs(x)<=TR+.02){k?cx.lineTo(X(x),Y(x*x)):cx.moveTo(X(x),Y(x*x));}});cx.stroke();cx.setLineDash([]);
+  cx.fillStyle=css('--target');for(const [x,y] of data){cx.beginPath();cx.arc(X(x),Y(y),2.2,0,7);cx.fill();}
+  cx.strokeStyle=css('--net');cx.lineWidth=2.8;cx.beginPath();
+  xs.forEach((x,k)=>{const y=fwd(x);k?cx.lineTo(X(x),Y(y)):cx.moveTo(X(x),Y(y));});cx.stroke();
+  cx.restore();
+  cx.fillStyle=css('--ink');cx.font='12px system-ui';cx.textAlign='left';cx.fillText('y = c + Σ vᵢ·ReLU(wᵢ·x + bᵢ)',pl+8,pt+16);
+  cx.fillStyle=css('--sub');cx.fillText('c = '+P[3*H].toFixed(2)+'　H = '+H+'　（▲の番号 = ニューロン番号）',pl+8,pt+32);
+  cx.fillStyle=css('--neu');
+  for(let i=0;i<H;i++){const k=-P[H+i]/P[i];if(isFinite(k)&&k>XMIN&&k<XMAX){const px=X(k),py=h-pb;cx.beginPath();cx.moveTo(px,py-1);cx.lineTo(px-5,py-10);cx.lineTo(px+5,py-10);cx.fill();cx.font='10px system-ui';cx.textAlign='center';cx.fillText(i+1,px,py-13);}}
+  // loss history
+  const [hw,hh]=fit(hc,hx);hx.clearRect(0,0,hw,hh);
+  if(hist.length>1){
+    const mx=Math.max(...hist),mn=Math.min(...hist),lg=v=>Math.log10(v+1e-6);
+    hx.strokeStyle=css('--net');hx.lineWidth=1.8;hx.beginPath();
+    hist.forEach((v,i)=>{const px=i/(hist.length-1)*(hw-4)+2,py=hh-4-(lg(v)-lg(mn))/((lg(mx)-lg(mn))||1)*(hh-12);i?hx.lineTo(px,py):hx.moveTo(px,py);});hx.stroke();
+  }
+  hx.fillStyle=css('--sub');hx.font='11px system-ui';hx.textAlign='left';hx.fillText('誤差の推移（対数）',4,11);
+}
+function loop(){
+  if(running){const n=+$('sp').value,r=lr();for(let i=0;i<n;i++)step(r);update();draw();}
+  requestAnimationFrame(loop);
+}
+$('run').onclick=()=>{running=!running;$('run').textContent=running?'一時停止':'学習を再開';};
+$('one').onclick=()=>{running=false;$('run').textContent='学習を再開';step(lr());update();draw();};
+$('reset').onclick=()=>{running=false;$('run').textContent='学習を開始';init();};
+$('h').oninput=()=>{running=false;$('run').textContent='学習を開始';init();};
+$('lr').oninput=update;$('sp').oninput=update;$('parts').onchange=draw;
+window.addEventListener('resize',draw);
+init();loop();
+})();
+</script>
+</body>
+</html>
